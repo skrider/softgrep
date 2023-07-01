@@ -2,8 +2,6 @@ syntax = "proto3";
 
 option go_package = "github.com/skrider/attainer/pb";
 
-import "google/protobuf/timestamp.proto";
-
 package pb;
 
 message Chunk {
@@ -11,10 +9,7 @@ message Chunk {
 }
 
 message Embedding {
-    message Vector {
-        repeated float elem = 1;
-    }
-    Vector vec = 1;
+    repeated float vec = 1;
 }
 
 service Model {

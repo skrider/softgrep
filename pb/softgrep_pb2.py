@@ -11,10 +11,9 @@ from google.protobuf.internal import builder as _builder
 _sym_db = _symbol_database.Default()
 
 
-from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0esoftgrep.proto\x12\x02pb\x1a\x1fgoogle/protobuf/timestamp.proto\"\x18\n\x05\x43hunk\x12\x0f\n\x07\x63ontent\x18\x01 \x01(\t\"F\n\tEmbedding\x12!\n\x03vec\x18\x01 \x01(\x0b\x32\x14.pb.Embedding.Vector\x1a\x16\n\x06Vector\x12\x0c\n\x04\x65lem\x18\x01 \x03(\x02\x32.\n\x05Model\x12%\n\x07Predict\x12\t.pb.Chunk\x1a\r.pb.Embedding\"\x00\x42 Z\x1egithub.com/skrider/attainer/pbb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0esoftgrep.proto\x12\x02pb\"\x18\n\x05\x43hunk\x12\x0f\n\x07\x63ontent\x18\x01 \x01(\t\"\x18\n\tEmbedding\x12\x0b\n\x03vec\x18\x01 \x03(\x02\x32.\n\x05Model\x12%\n\x07Predict\x12\t.pb.Chunk\x1a\r.pb.Embedding\"\x00\x42 Z\x1egithub.com/skrider/attainer/pbb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -23,12 +22,10 @@ if _descriptor._USE_C_DESCRIPTORS == False:
 
   DESCRIPTOR._options = None
   DESCRIPTOR._serialized_options = b'Z\036github.com/skrider/attainer/pb'
-  _globals['_CHUNK']._serialized_start=55
-  _globals['_CHUNK']._serialized_end=79
-  _globals['_EMBEDDING']._serialized_start=81
-  _globals['_EMBEDDING']._serialized_end=151
-  _globals['_EMBEDDING_VECTOR']._serialized_start=129
-  _globals['_EMBEDDING_VECTOR']._serialized_end=151
-  _globals['_MODEL']._serialized_start=153
-  _globals['_MODEL']._serialized_end=199
+  _globals['_CHUNK']._serialized_start=22
+  _globals['_CHUNK']._serialized_end=46
+  _globals['_EMBEDDING']._serialized_start=48
+  _globals['_EMBEDDING']._serialized_end=72
+  _globals['_MODEL']._serialized_start=74
+  _globals['_MODEL']._serialized_end=120
 # @@protoc_insertion_point(module_scope)
