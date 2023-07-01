@@ -7,4 +7,5 @@ require (
 	github.com/denormal/go-gitignore v0.0.0-20180930084346-ae8ad1d07817 // indirect
 	github.com/karrick/godirwalk v1.17.0 // indirect
 	github.com/sabhiram/go-gitignore v0.0.0-20210923224102-525f6e181f06 // indirect
+	github.com/smacker/go-tree-sitter v0.0.0-20230501083651-a7d92773b3aa // indirect
 )
