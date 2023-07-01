@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -11,8 +10,10 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/karrick/godirwalk"
 	ignore "github.com/denormal/go-gitignore"
+	"github.com/karrick/godirwalk"
+	sitter "github.com/smacker/go-tree-sitter"
+	"github.com/smacker/go-tree-sitter/golang"
 )
 
 const USAGE string = `softgrep 0.0.1
@@ -27,6 +28,9 @@ embeddings.
 
 Softgrep by deault will parse a file using language-specific parsers and
 generate embeddings for each chunk.
+
+If deployed in a git repo(s), Softgrep will only look at the current state 
+of files in HEAD.
 
 USAGE: 
     softgrep [OPTIONS] QUERY [PATH...]
@@ -75,8 +79,6 @@ func IsBinary(file *os.File) bool {
 
 var NUM_WORKERS = runtime.NumCPU() - 1
 
-var haltDescendError = errors.New("")
-
 func main() {
     flag.Usage = printUsage
 	flag.Parse()
@@ -99,8 +101,47 @@ func main() {
         wg.Add(1)
         go func(i int) {
             defer wg.Done()
+            re, _ := regexp.Compile("\\.go$")
             for entry := range parseCh {
                 fmt.Println(entry.Name)
+
+                if !re.MatchString(entry.Name) {
+                    continue
+                }
+
+                parser := sitter.NewParser()
+
+                lang := golang.GetLanguage()
+                parser.SetLanguage(lang)
+
+                sourceCode, err := io.ReadAll(entry.Reader)
+                if err != nil {
+                    log.Panic(err)
+                }
+
+                tree := parser.Parse(nil, sourceCode)
+                
+                n := tree.RootNode()
+
+                query := `(function_declaration
+name: (identifier) @function.name
+body: (block) @body)`
+                q, _ := sitter.NewQuery([]byte(query), lang)
+                qc := sitter.NewQueryCursor()
+
+                qc.Exec(q, n)
+
+                for {
+                    m, ok := qc.NextMatch()
+                    if !ok {
+                        break
+                    }
+                    // Apply predicates filtering
+                    m = qc.FilterPredicates(m, sourceCode)
+                    for _, c := range m.Captures {
+                        fmt.Println(c.Node.Content(sourceCode))
+                    }
+                }
 
                 if closer, ok := entry.Reader.(io.Closer); ok {
                     closer.Close()
