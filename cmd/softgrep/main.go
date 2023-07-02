@@ -10,8 +10,7 @@ import (
 	"runtime"
 	"sync"
 
-	ignore "github.com/denormal/go-gitignore"
-	"github.com/karrick/godirwalk"
+	"github.com/skrider/softgrep/pkg/walker"
 	sitter "github.com/smacker/go-tree-sitter"
 	"github.com/smacker/go-tree-sitter/golang"
 )
@@ -61,10 +60,6 @@ type CorpusEntry struct {
     Name string
 }
 
-func (c *CorpusEntry) Parse() {
-
-}
-
 func IsBinary(file *os.File) bool {
     bytes := make([]byte, 1024)
     n, _ := file.Read(bytes)
@@ -78,6 +73,11 @@ func IsBinary(file *os.File) bool {
 }
 
 var NUM_WORKERS = runtime.NumCPU() - 1
+// var NUM_WORKERS = 32
+
+const FUNCTION_QUERY = `(function_declaration) @declaration`
+
+// TODO one goroutine per embed req
 
 func main() {
     flag.Usage = printUsage
@@ -101,6 +101,10 @@ func main() {
         wg.Add(1)
         go func(i int) {
             defer wg.Done()
+            parser := sitter.NewParser()
+            lang := golang.GetLanguage()
+            parser.SetLanguage(lang)
+
             re, _ := regexp.Compile("\\.go$")
             for entry := range parseCh {
                 fmt.Println(entry.Name)
@@ -109,24 +113,15 @@ func main() {
                     continue
                 }
 
-                parser := sitter.NewParser()
-
-                lang := golang.GetLanguage()
-                parser.SetLanguage(lang)
-
                 sourceCode, err := io.ReadAll(entry.Reader)
                 if err != nil {
                     log.Panic(err)
                 }
 
                 tree := parser.Parse(nil, sourceCode)
-                
                 n := tree.RootNode()
 
-                query := `(function_declaration
-name: (identifier) @function.name
-body: (block) @body)`
-                q, _ := sitter.NewQuery([]byte(query), lang)
+                q, _ := sitter.NewQuery([]byte(FUNCTION_QUERY), lang)
                 qc := sitter.NewQueryCursor()
 
                 qc.Exec(q, n)
@@ -136,7 +131,6 @@ body: (block) @body)`
                     if !ok {
                         break
                     }
-                    // Apply predicates filtering
                     m = qc.FilterPredicates(m, sourceCode)
                     for _, c := range m.Captures {
                         fmt.Println(c.Node.Content(sourceCode))
@@ -150,54 +144,14 @@ body: (block) @body)`
         }(i)
     }
 
-    ignoreFiles := make([]ignore.GitIgnore, 0)
-    skipRe, _ := regexp.Compile("(/.git|/node_modules|[^/].log|\\w.lock|.zip|.tgz)$")
-    seenPaths := make(map[string]bool)
-
-    callback := func(osPathname string, directoryEntry *godirwalk.Dirent) error {
-        if _, ok := seenPaths[osPathname]; ok {
-            return godirwalk.SkipThis
+    emitter := func (osPathname string, file *os.File) error {
+        parseCh <- CorpusEntry{
+            Name: osPathname,
+            Reader: file,
         }
-        seenPaths[osPathname] = true
-
-        if skipRe.MatchString(osPathname) {
-            return godirwalk.SkipThis
-        }
-        for _, ignoreFile := range ignoreFiles {
-            if ignoreFile.Ignore(osPathname) {
-                return godirwalk.SkipThis
-            }
-        }
-
-        if directoryEntry.IsDir() {
-            // ensure we parse .gitignore before entering directory
-            ignorePath := fmt.Sprintf("%s/.gitignore", osPathname)
-            if _, err := os.Stat(ignorePath); err == nil {
-                if ignoreFile, err := ignore.NewFromFile(ignorePath); err == nil {
-                    ignoreFiles = append(ignoreFiles, ignoreFile)
-                }
-            }
-        }
-
-        if directoryEntry.IsRegular() {
-            file, err := os.Open(osPathname)
-            if err != nil {
-                return err
-            }
-            if !IsBinary(file) {
-                parseCh <- CorpusEntry{
-                    Reader: file,
-                    Name: osPathname,
-                }
-            }
-        }
-
         return nil
     }
-    options := &godirwalk.Options{
-        Callback: callback,
-        FollowSymbolicLinks: true,
-    }
+    w := walker.NewWalker(emitter)
 
     useStdin := false
     for _, path := range entryPaths {
@@ -213,7 +167,7 @@ body: (block) @body)`
                 log.Panic("Error: Pipe not found")
             }
         } else {
-            err := godirwalk.Walk(path, options)
+            err := w.Walk(path)
             if err != nil {
                 log.Panic(err)
             }
