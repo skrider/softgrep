@@ -14,7 +14,7 @@ class ModelEntrypoint(softgrep_pb2_grpc.Model):
         context: grpc.aio.ServicerContext,
     ) -> softgrep_pb2.Embedding:
         print(request.content)
-        return softgrep_pb2.Embedding(np.random.randn(100))
+        return softgrep_pb2.Embedding(vec=np.random.randn(100))
 
 
 async def serve() -> None:

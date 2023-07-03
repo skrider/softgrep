@@ -41,3 +41,6 @@ benchmark: build
 	time --append --output=$(BENCHLOG) $(BENCHCMD)
 	cat $(BENCHLOG) | tail -n 5
 
+server:
+	$(PYTHON) ./python/server.py
+

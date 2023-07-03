@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"io"
 	"log"
@@ -8,7 +9,9 @@ import (
 	"runtime"
 	"sync"
 
+	"github.com/skrider/softgrep/pb"
 	"github.com/skrider/softgrep/pkg/config"
+	"github.com/skrider/softgrep/pkg/embed"
 	"github.com/skrider/softgrep/pkg/tokenize"
 	"github.com/skrider/softgrep/pkg/walker"
 )
@@ -49,25 +52,26 @@ func printUsage() {
 	log.Fatal(USAGE)
 }
 
-type CorpusEntry struct {
-    // reader to read from
-    Reader io.Reader
-    // type to determine tree sitter parser. If empty, no type is used.
-    Type string
-    // filename or - for STDIN
-    Name string
+type ChunkSource struct {
+	Reader io.Reader // reader to read from
+	Type   string    // type to determine tree sitter parser. If empty, no type is used.
+	Name   string    // filename or - for STDIN
+}
+
+type Chunk struct {
+	Content string
 }
 
 func IsBinary(file *os.File) bool {
-    bytes := make([]byte, 1024)
-    n, _ := file.Read(bytes)
-    for _, b := range bytes[:n] {
-        if b == 0 {
-            return true 
-        }
-    }
-    file.Seek(0, 0)
-    return false
+	bytes := make([]byte, 1024)
+	n, _ := file.Read(bytes)
+	for _, b := range bytes[:n] {
+		if b == 0 {
+			return true
+		}
+	}
+	file.Seek(0, 0)
+	return false
 }
 
 var NUM_WORKERS = runtime.NumCPU() - 1
@@ -75,88 +79,116 @@ var NUM_WORKERS = runtime.NumCPU() - 1
 // TODO one goroutine per embed req
 
 func main() {
-    config := config.NewConfig()
+	config := config.NewConfig()
 
-    flag.Usage = printUsage
+	flag.Usage = printUsage
 	flag.Parse()
-    
-    args := flag.Args()
-    var entryPaths []string
-    if len(args) == 0 {
-        cwd, err := os.Getwd()
-        if err != nil {
-            log.Panicf("Error: Error getting working directory: %s", err)
-        }
-        entryPaths = []string{cwd}
-    } else {
-        entryPaths = args
-    }
 
-    parseCh := make(chan CorpusEntry, NUM_WORKERS)
-    var wg sync.WaitGroup
-    for i := 0; i < NUM_WORKERS; i++ {
-        wg.Add(1)
-        go func(i int) {
-            defer wg.Done()
-            var entry CorpusEntry
-            defer func() {
-                if r := recover(); r != nil {
-                    log.Fatalf("Recovered in worker %d: %s: %s", i, entry.Name, r)
-                }
-            }()
-            for entry = range parseCh {
-                tokenizer, err := tokenize.NewTokenizer(entry.Name, entry.Reader, &config)
-                if err != nil {
-                    log.Printf("Error: Error parsing %s: %s", entry.Name, err)
-                    continue
-                }
+	args := flag.Args()
+	var entryPaths []string
+	if len(args) == 0 {
+		cwd, err := os.Getwd()
+		if err != nil {
+			log.Panicf("Error: Error getting working directory: %s", err)
+		}
+		entryPaths = []string{cwd}
+	} else {
+		entryPaths = args
+	}
 
-                token, err := tokenizer.Next()
-                for ; err == nil; token, err = tokenizer.Next() {
-                    log.Printf("%s: %s\n", entry.Name, token)
-                }
-                if err != io.EOF {
-                    log.Printf("Error: Error parsing %s: %s", entry.Name, err)
-                }
+	parseCh := make(chan ChunkSource, NUM_WORKERS)
+	var wg sync.WaitGroup
 
-                if closer, ok := entry.Reader.(io.Closer); ok {
-                    closer.Close()
-                }
-            }
-        }(i)
-    }
+	tokenCh := make(chan string)
+	for i := 0; i < NUM_WORKERS; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			var entry ChunkSource
+			defer func() {
+				if r := recover(); r != nil {
+					log.Fatalf("Recovered in worker %d: %s: %s", i, entry.Name, r)
+				}
+			}()
+			for entry = range parseCh {
+				tokenizer, err := tokenize.NewTokenizer(entry.Name, entry.Reader, &config)
+				if err != nil {
+					log.Printf("Error: Error parsing %s: %s", entry.Name, err)
+					continue
+				}
 
-    emitter := func (osPathname string, file *os.File) error {
-        parseCh <- CorpusEntry{
-            Name: osPathname,
-            Reader: file,
-        }
-        return nil
-    }
-    w := walker.NewWalker(emitter)
+				token, err := tokenizer.Next()
+				for ; err == nil; token, err = tokenizer.Next() {
+					tokenCh <- token
+				}
+				if err != io.EOF {
+					log.Printf("Error: Error parsing %s: %s", entry.Name, err)
+				}
 
-    useStdin := false
-    for _, path := range entryPaths {
-        if path == "-" && !useStdin {
-            stdinInfo, _ := os.Stdin.Stat()
-            if (stdinInfo.Mode() & os.ModeCharDevice) == 0 {
-                parseCh <- CorpusEntry{
-                    Reader: os.Stdin,
-                    Name: "-",
-                }
-                useStdin = true
-            } else {
-                log.Panic("Error: Pipe not found")
-            }
-        } else {
-            err := w.Walk(path)
-            if err != nil {
-                log.Panic(err)
-            }
-        }
-    }
-    close(parseCh)
+				if closer, ok := entry.Reader.(io.Closer); ok {
+					entry.Reader = nil
+					closer.Close()
+				}
+			}
+		}(i)
+	}
 
-    wg.Wait()
+	client, err := embed.NewClient("localhost", "50051")
+	if err != nil {
+		log.Panic(err)
+	}
+
+	reqsDone := make(chan bool)
+	go func() {
+		var wg sync.WaitGroup
+		for token := range tokenCh {
+			wg.Add(1)
+			go func(token string) {
+				defer wg.Done()
+				emb, err := client.Predict(context.TODO(), &pb.Chunk{Content: token})
+				if err != nil {
+					log.Printf("Error: Error predicting %s: %s", token, err)
+				}
+				vec := emb.GetVec()
+				log.Printf("vec[%d] = %f", len(vec)-1, vec[len(vec)-1])
+			}(token)
+		}
+		wg.Wait()
+		reqsDone <- true
+	}()
+
+	emitter := func(osPathname string, file *os.File) error {
+		parseCh <- ChunkSource{
+			Name:   osPathname,
+			Reader: file,
+		}
+		return nil
+	}
+	w := walker.NewWalker(emitter)
+
+	useStdin := false
+	for _, path := range entryPaths {
+		if path == "-" && !useStdin {
+			stdinInfo, _ := os.Stdin.Stat()
+			if (stdinInfo.Mode() & os.ModeCharDevice) == 0 {
+				parseCh <- ChunkSource{
+					Reader: os.Stdin,
+					Name:   "-",
+				}
+				useStdin = true
+			} else {
+				log.Panic("Error: Pipe not found")
+			}
+		} else {
+			err := w.Walk(path)
+			if err != nil {
+				log.Panic(err)
+			}
+		}
+	}
+
+	close(parseCh)
+	wg.Wait()
+	close(tokenCh)
+	<-reqsDone
 }
-
