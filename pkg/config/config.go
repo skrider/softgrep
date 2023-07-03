@@ -6,9 +6,8 @@ type Config struct {
 }
 
 func NewConfig() Config {
-    return Config{
-        Stride: 500,
-        Overlap: 50,
-    }
+	return Config{
+		Stride:  500,
+		Overlap: 50,
+	}
 }
-

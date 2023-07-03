@@ -87,10 +87,9 @@ func init() {
 			FilePattern: re,
 			Strided:     false,
 			Queries: []Query{
-				{Name: "function", Query: "[ " + "    (function_declaration), " + "    (method_declaration), " + "    (func_literal) " + "] @ function " + ""},
+				{Name: "function", Query: "[ " + "(function_declaration) " + "(method_declaration) " + "(func_literal) " + "] @function " + ""},
 			},
 		})
 	}
 
 }
-

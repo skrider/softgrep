@@ -13,3 +13,15 @@ pb: pb/softgrep.proto
 languages: tool/generate_ts_import
 	go run tool/generate_ts_import/main.go > pkg/tokenize/languages.go
 
+build-debug:
+	go build -gcflags='all=-N -l' cmd/softgrep/main.go
+
+debug:
+	dlv exec ./main
+
+run: 
+	go run cmd/softgrep/main.go
+
+format:
+	fd -e go -x go fmt
+

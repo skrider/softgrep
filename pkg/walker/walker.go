@@ -89,4 +89,3 @@ func (w *Walker) Walk(path string) error {
 		FollowSymbolicLinks: true,
 	})
 }
-

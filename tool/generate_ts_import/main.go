@@ -87,7 +87,7 @@ func main() {
 		panic(err)
 	}
 
-    var w strings.Builder
+	var w strings.Builder
 	err = tmpl.Execute(&w, out)
 	if err != nil {
 		panic(err)
@@ -98,5 +98,5 @@ func main() {
 		panic(err)
 	}
 
-    fmt.Println(string(formattedCode))
+	fmt.Println(string(formattedCode))
 }

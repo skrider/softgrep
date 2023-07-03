@@ -71,9 +71,6 @@ func IsBinary(file *os.File) bool {
 }
 
 var NUM_WORKERS = runtime.NumCPU() - 1
-// var NUM_WORKERS = 32
-
-const FUNCTION_QUERY = `(function_declaration) @declaration`
 
 // TODO one goroutine per embed req
 
@@ -101,7 +98,13 @@ func main() {
         wg.Add(1)
         go func(i int) {
             defer wg.Done()
-            for entry := range parseCh {
+            var entry CorpusEntry
+            defer func() {
+                if r := recover(); r != nil {
+                    log.Fatalf("Recovered in worker %d: %s: %s", i, entry.Name, r)
+                }
+            }()
+            for entry = range parseCh {
                 tokenizer, err := tokenize.NewTokenizer(entry.Name, entry.Reader, &config)
                 if err != nil {
                     log.Printf("Error: %s", err)
@@ -110,7 +113,7 @@ func main() {
 
                 token, err := tokenizer.Next()
                 for ; err != io.EOF; token, err = tokenizer.Next() {
-                    log.Printf("TOKEN EMITTED: %s\n", token)
+                    log.Printf("Token emitted: %s\n", token)
                 }
 
                 if closer, ok := entry.Reader.(io.Closer); ok {

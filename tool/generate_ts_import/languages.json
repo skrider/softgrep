@@ -51,10 +51,10 @@
                 "name": "function",
                 "query": [
                     "[",
-                    "    (function_declaration),",
-                    "    (method_declaration),",
-                    "    (func_literal)",
-                    "] @ function"
+                    "(function_declaration)",
+                    "(method_declaration)",
+                    "(func_literal)",
+                    "] @function"
                 ]
             }
         ]

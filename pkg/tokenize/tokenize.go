@@ -40,21 +40,27 @@ type StridedTokenizer struct {
 }
 
 func (t *StridedTokenizer) Next() (string, error) {
-    if t.prevEnd == len(t.b) {
-        return "", io.EOF
-    }
+	if t.prevEnd == len(t.b) {
+		return "", io.EOF
+	}
 
-    start := t.prevEnd - t.overlap
-    if start < 0 {
-        start = 0
-    }
-    end := start + t.stride
-    if end > len(t.b) {
-        end = len(t.b)
-    }
-    t.prevEnd = end
+	start := t.prevEnd - t.overlap
+	if start < 0 {
+		start = 0
+	}
+	end := start + t.stride
+	if end > len(t.b) {
+		end = len(t.b)
+	}
+	t.prevEnd = end
 
-    return string(t.b[start:end]), nil
+	return string(t.b[start:end]), nil
+}
+
+type EmptyTokenizer struct{}
+
+func (t *EmptyTokenizer) Next() (string, error) {
+	return "", io.EOF
 }
 
 func NewTokenizer(filename string, reader io.Reader, config *config.Config) (Tokenizer, error) {
@@ -70,9 +76,10 @@ func NewTokenizer(filename string, reader io.Reader, config *config.Config) (Tok
 		return nil, err
 	}
 
-	if lang.Strided {
+	if lang == nil || lang.Strided {
 		return &StridedTokenizer{
-			b: b,
+			b:       b,
+			prevEnd: 0,
 		}, nil
 	}
 
@@ -81,7 +88,10 @@ func NewTokenizer(filename string, reader io.Reader, config *config.Config) (Tok
 	parser.SetLanguage(l)
 	tree := parser.Parse(nil, b)
 	n := tree.RootNode()
-	q, _ := sitter.NewQuery([]byte(lang.Queries[0].Query), l)
+	q, err := sitter.NewQuery([]byte(lang.Queries[0].Query), l)
+	if err != nil {
+		return nil, err
+	}
 	qc := sitter.NewQueryCursor()
 	qc.Exec(q, n)
 
