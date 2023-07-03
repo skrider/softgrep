@@ -1,0 +1,70 @@
+[
+    {
+        "name": "bash",
+        "file_pattern": "\\\\.(sh|bash)$",
+        "module": "bash",
+        "strided": false,
+        "queries": [
+            {
+                "name": "functions",
+                "query": [
+                    "(function_definition) @capture"
+                ]
+            }
+        ]
+    },
+    {
+        "name": "protobuf",
+        "file_pattern": "\\\\.proto$",
+        "module": "protobuf",
+        "strided": true,
+        "queries": [
+            {
+                "name": "functions",
+                "query": [
+                    "(service) @service"
+                ]
+            }
+        ]
+    },
+    {
+        "name": "python",
+        "file_pattern": "\\\\.py$",
+        "module": "python",
+        "strided": false,
+        "queries": [
+            {
+                "name": "function",
+                "query": [
+                    "(function_definition) @capture"
+                ]
+            }
+        ]
+    },
+    {
+        "name": "golang",
+        "file_pattern": "\\\\.go",
+        "module": "golang",
+        "strided": false,
+        "queries": [
+            {
+                "name": "function",
+                "query": [
+                    "(function_declaration) @capture"
+                ]
+            },
+            {
+                "name": "method",
+                "query": [
+                    "(method_declaration) @capture"
+                ]
+            },
+            {
+                "name": "function literal",
+                "query": [
+                    "(func_literal) @capture"
+                ]
+            }
+        ]
+    }
+]

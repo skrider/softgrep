@@ -10,3 +10,6 @@ pb: pb/softgrep.proto
 		pb/softgrep.proto
 .PHONY: pb
 
+languages: tool/generate_ts_import
+	go run tool/generate_ts_import/main.go > pkg/tokenize/languages.go
+
