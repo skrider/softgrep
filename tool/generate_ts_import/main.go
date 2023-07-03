@@ -35,7 +35,7 @@ type Language struct {
 	Queries     []Query 
 }
 
-var Languages []Language
+var Languages []*Language
 
 func init() {
     {{range .}}
@@ -43,7 +43,7 @@ func init() {
     if err != nil { 
         panic(err) 
     }
-    Languages = append(Languages, Language{
+    Languages = append(Languages, &Language{
         Name: "{{.Name}}",
         GetLanguage: {{.Name}}.GetLanguage,
         FilePattern: {{.Name}}Re,

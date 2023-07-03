@@ -24,7 +24,7 @@ type Language struct {
 	Queries     []Query
 }
 
-var Languages []Language
+var Languages []*Language
 
 func init() {
 
@@ -32,7 +32,7 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	Languages = append(Languages, Language{
+	Languages = append(Languages, &Language{
 		Name:        "bash",
 		GetLanguage: bash.GetLanguage,
 		FilePattern: bashRe,
@@ -46,7 +46,7 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	Languages = append(Languages, Language{
+	Languages = append(Languages, &Language{
 		Name:        "protobuf",
 		GetLanguage: protobuf.GetLanguage,
 		FilePattern: protobufRe,
@@ -60,7 +60,7 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	Languages = append(Languages, Language{
+	Languages = append(Languages, &Language{
 		Name:        "python",
 		GetLanguage: python.GetLanguage,
 		FilePattern: pythonRe,
@@ -74,7 +74,7 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	Languages = append(Languages, Language{
+	Languages = append(Languages, &Language{
 		Name:        "golang",
 		GetLanguage: golang.GetLanguage,
 		FilePattern: golangRe,
