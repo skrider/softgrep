@@ -107,13 +107,16 @@ func main() {
             for entry = range parseCh {
                 tokenizer, err := tokenize.NewTokenizer(entry.Name, entry.Reader, &config)
                 if err != nil {
-                    log.Printf("Error: %s", err)
+                    log.Printf("Error: Error parsing %s: %s", entry.Name, err)
                     continue
                 }
 
                 token, err := tokenizer.Next()
-                for ; err != io.EOF; token, err = tokenizer.Next() {
-                    log.Printf("Token emitted: %s\n", token)
+                for ; err == nil; token, err = tokenizer.Next() {
+                    log.Printf("%s: %s\n", entry.Name, token)
+                }
+                if err != io.EOF {
+                    log.Printf("Error: Error parsing %s: %s", entry.Name, err)
                 }
 
                 if closer, ok := entry.Reader.(io.Closer); ok {

@@ -57,12 +57,6 @@ func (t *StridedTokenizer) Next() (string, error) {
 	return string(t.b[start:end]), nil
 }
 
-type EmptyTokenizer struct{}
-
-func (t *EmptyTokenizer) Next() (string, error) {
-	return "", io.EOF
-}
-
 func NewTokenizer(filename string, reader io.Reader, config *config.Config) (Tokenizer, error) {
 	var lang *Language
 	for _, l := range Languages {
@@ -80,6 +74,8 @@ func NewTokenizer(filename string, reader io.Reader, config *config.Config) (Tok
 		return &StridedTokenizer{
 			b:       b,
 			prevEnd: 0,
+            stride: config.Stride,
+            overlap: config.Overlap,
 		}, nil
 	}
 
