@@ -39,20 +39,22 @@ var Languages []*Language
 
 func init() {
     {{range .}}
-    {{.Name}}Re, err := regexp.Compile("{{.FilePattern}}")
-    if err != nil { 
-        panic(err) 
+    {
+        re, err := regexp.Compile("{{.FilePattern}}")
+        if err != nil { 
+            panic(err) 
+        }
+        Languages = append(Languages, &Language{
+            Name: "{{.Name}}",
+            GetLanguage: {{.Name}}.GetLanguage,
+            FilePattern: re,
+            Strided: {{if .Strided}}true{{else}}false{{end}},
+            Queries: []Query{
+                {{range .Queries}}{Name: "{{.Name}}", Query: {{range .Query}}"{{.}} " +{{end}}""},
+                {{end}}
+            },
+        })
     }
-    Languages = append(Languages, &Language{
-        Name: "{{.Name}}",
-        GetLanguage: {{.Name}}.GetLanguage,
-        FilePattern: {{.Name}}Re,
-        Strided: {{if .Strided}}true{{else}}false{{end}},
-        Queries: []Query{
-            {{range .Queries}}{Name: "{{.Name}}", Query: {{range .Query}}"{{.}} " +{{end}}""},
-            {{end}}
-        },
-    })
     {{end}}
 }
 `

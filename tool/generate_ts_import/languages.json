@@ -50,19 +50,11 @@
             {
                 "name": "function",
                 "query": [
-                    "(function_declaration) @capture"
-                ]
-            },
-            {
-                "name": "method",
-                "query": [
-                    "(method_declaration) @capture"
-                ]
-            },
-            {
-                "name": "function literal",
-                "query": [
-                    "(func_literal) @capture"
+                    "[",
+                    "    (function_declaration),",
+                    "    (method_declaration),",
+                    "    (func_literal)",
+                    "] @ function"
                 ]
             }
         ]

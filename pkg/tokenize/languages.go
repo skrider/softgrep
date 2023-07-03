@@ -28,63 +28,69 @@ var Languages []*Language
 
 func init() {
 
-	bashRe, err := regexp.Compile("\\.(sh|bash)$")
-	if err != nil {
-		panic(err)
+	{
+		re, err := regexp.Compile("\\.(sh|bash)$")
+		if err != nil {
+			panic(err)
+		}
+		Languages = append(Languages, &Language{
+			Name:        "bash",
+			GetLanguage: bash.GetLanguage,
+			FilePattern: re,
+			Strided:     false,
+			Queries: []Query{
+				{Name: "functions", Query: "(function_definition) @capture " + ""},
+			},
+		})
 	}
-	Languages = append(Languages, &Language{
-		Name:        "bash",
-		GetLanguage: bash.GetLanguage,
-		FilePattern: bashRe,
-		Strided:     false,
-		Queries: []Query{
-			{Name: "functions", Query: "(function_definition) @capture " + ""},
-		},
-	})
 
-	protobufRe, err := regexp.Compile("\\.proto$")
-	if err != nil {
-		panic(err)
+	{
+		re, err := regexp.Compile("\\.proto$")
+		if err != nil {
+			panic(err)
+		}
+		Languages = append(Languages, &Language{
+			Name:        "protobuf",
+			GetLanguage: protobuf.GetLanguage,
+			FilePattern: re,
+			Strided:     true,
+			Queries: []Query{
+				{Name: "functions", Query: "(service) @service " + ""},
+			},
+		})
 	}
-	Languages = append(Languages, &Language{
-		Name:        "protobuf",
-		GetLanguage: protobuf.GetLanguage,
-		FilePattern: protobufRe,
-		Strided:     true,
-		Queries: []Query{
-			{Name: "functions", Query: "(service) @service " + ""},
-		},
-	})
 
-	pythonRe, err := regexp.Compile("\\.py$")
-	if err != nil {
-		panic(err)
+	{
+		re, err := regexp.Compile("\\.py$")
+		if err != nil {
+			panic(err)
+		}
+		Languages = append(Languages, &Language{
+			Name:        "python",
+			GetLanguage: python.GetLanguage,
+			FilePattern: re,
+			Strided:     false,
+			Queries: []Query{
+				{Name: "function", Query: "(function_definition) @capture " + ""},
+			},
+		})
 	}
-	Languages = append(Languages, &Language{
-		Name:        "python",
-		GetLanguage: python.GetLanguage,
-		FilePattern: pythonRe,
-		Strided:     false,
-		Queries: []Query{
-			{Name: "function", Query: "(function_definition) @capture " + ""},
-		},
-	})
 
-	golangRe, err := regexp.Compile("\\.go")
-	if err != nil {
-		panic(err)
+	{
+		re, err := regexp.Compile("\\.go")
+		if err != nil {
+			panic(err)
+		}
+		Languages = append(Languages, &Language{
+			Name:        "golang",
+			GetLanguage: golang.GetLanguage,
+			FilePattern: re,
+			Strided:     false,
+			Queries: []Query{
+				{Name: "function", Query: "[ " + "    (function_declaration), " + "    (method_declaration), " + "    (func_literal) " + "] @ function " + ""},
+			},
+		})
 	}
-	Languages = append(Languages, &Language{
-		Name:        "golang",
-		GetLanguage: golang.GetLanguage,
-		FilePattern: golangRe,
-		Strided:     false,
-		Queries: []Query{
-			{Name: "function", Query: "(function_declaration) @capture " + ""},
-			{Name: "method", Query: "(method_declaration) @capture " + ""},
-			{Name: "function literal", Query: "(func_literal) @capture " + ""},
-		},
-	})
 
 }
 
