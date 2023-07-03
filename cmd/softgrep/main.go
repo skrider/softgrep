@@ -2,17 +2,15 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"io"
 	"log"
 	"os"
-	"regexp"
 	"runtime"
 	"sync"
 
+	"github.com/skrider/softgrep/pkg/config"
+	"github.com/skrider/softgrep/pkg/tokenize"
 	"github.com/skrider/softgrep/pkg/walker"
-	sitter "github.com/smacker/go-tree-sitter"
-	"github.com/smacker/go-tree-sitter/golang"
 )
 
 const USAGE string = `softgrep 0.0.1
@@ -80,6 +78,8 @@ const FUNCTION_QUERY = `(function_declaration) @declaration`
 // TODO one goroutine per embed req
 
 func main() {
+    config := config.NewConfig()
+
     flag.Usage = printUsage
 	flag.Parse()
     
@@ -101,40 +101,16 @@ func main() {
         wg.Add(1)
         go func(i int) {
             defer wg.Done()
-            parser := sitter.NewParser()
-            lang := golang.GetLanguage()
-            parser.SetLanguage(lang)
-
-            re, _ := regexp.Compile("\\.go$")
             for entry := range parseCh {
-                fmt.Println(entry.Name)
-
-                if !re.MatchString(entry.Name) {
+                tokenizer, err := tokenize.NewTokenizer(entry.Name, entry.Reader, &config)
+                if err != nil {
+                    log.Printf("Error: %s", err)
                     continue
                 }
 
-                sourceCode, err := io.ReadAll(entry.Reader)
-                if err != nil {
-                    log.Panic(err)
-                }
-
-                tree := parser.Parse(nil, sourceCode)
-                n := tree.RootNode()
-
-                q, _ := sitter.NewQuery([]byte(FUNCTION_QUERY), lang)
-                qc := sitter.NewQueryCursor()
-
-                qc.Exec(q, n)
-
-                for {
-                    m, ok := qc.NextMatch()
-                    if !ok {
-                        break
-                    }
-                    m = qc.FilterPredicates(m, sourceCode)
-                    for _, c := range m.Captures {
-                        fmt.Println(c.Node.Content(sourceCode))
-                    }
+                token, err := tokenizer.Next()
+                for ; err != io.EOF; token, err = tokenizer.Next() {
+                    log.Printf("TOKEN EMITTED: %s\n", token)
                 }
 
                 if closer, ok := entry.Reader.(io.Closer); ok {

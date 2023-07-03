@@ -57,7 +57,7 @@ func (t *StridedTokenizer) Next() (string, error) {
     return string(t.b[start:end]), nil
 }
 
-func NewTokenizer(filename string, reader io.Reader, config config.Config) (Tokenizer, error) {
+func NewTokenizer(filename string, reader io.Reader, config *config.Config) (Tokenizer, error) {
 	var lang *Language
 	for _, l := range Languages {
 		if l.FilePattern.MatchString(filename) {
