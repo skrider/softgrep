@@ -43,11 +43,32 @@ benchmark: build
 
 # SERVER
 
+LOCAL_TAG = softgrep/server
 server:
 	DOCKER_BUILDKIT=0 docker build . \
-		-t softgrep/server
+		-t $(LOCAL_TAG)
+
+SERVER_ARTIFACTS = ./deploy/artifacts/server
+ECR_JSON = $(SERVER_ARTIFACTS)/ecr-create-repository.json
+create-ecr-repo:
+	mkdir -p $(SERVER_ARTIFACTS)
+	aws ecr create-repository \
+		--repository-name softgrep/server \
+		--no-cli-pager | tee $(ECR_JSON)
+
+docker-login:
+	aws ecr get-login-password --region $(REGION) \
+		| docker login \
+			--username AWS \
+			--password-stdin $(shell cat $(ECR_JSON) | jq .repository.repositoryUri)
+
+publish-server:
+	docker tag $(LOCAL_TAG):latest $(shell cat $(ECR_JSON) | jq --raw-output .repository.repositoryUri):latest
+	docker push $(shell cat $(ECR_JSON) | jq --raw-output .repository.repositoryUri):latest
 
 # DEPLOYMENT
+
+REGION = us-west-2
 
 bootstrap-cluster:
 	helm repo add kuberay https://ray-project.github.io/kuberay-helm/
@@ -68,9 +89,4 @@ expose:
 
 cluster:
 	eksctl create cluster -f deploy/cluster.yaml
-
-create-ecr-repo:
-	aws ecr create-repository \
-		--repository-name softgrep \
-		--no-cli-pager | tee ./deploy/artifacts/ecr-repo.json
 

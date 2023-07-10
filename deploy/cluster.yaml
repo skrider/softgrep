@@ -1,0 +1,31 @@
+# cluster.yaml
+# A cluster with two managed nodegroups
+---
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: managed-cluster
+  region: us-west-2
+
+managedNodeGroups:
+  - name: managed-ng-1
+    instanceType: m5.large
+    minSize: 1
+    maxSize: 1
+    volumeSize: 80
+    ssh:
+      allow: true
+      publicKeyPath: ~/.ssh/id_ec2_rsa.pub
+    labels: 
+    tags:
+  - name: managed-ng-2
+    instanceType: p2.xlarge
+    minSize: 0
+    maxSize: 1
+    volumeSize: 80
+    ssh:
+      allow: true
+      publicKeyPath: ~/.ssh/id_ec2_rsa.pub
+    labels:
+    tags:

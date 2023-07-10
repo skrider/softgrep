@@ -1,0 +1,16 @@
+{
+    "repository": {
+        "repositoryArn": "arn:aws:ecr:us-west-2:968076933095:repository/softgrep/server",
+        "registryId": "968076933095",
+        "repositoryName": "softgrep/server",
+        "repositoryUri": "968076933095.dkr.ecr.us-west-2.amazonaws.com/softgrep/server",
+        "createdAt": "2023-07-10T12:07:26-07:00",
+        "imageTagMutability": "MUTABLE",
+        "imageScanningConfiguration": {
+            "scanOnPush": false
+        },
+        "encryptionConfiguration": {
+            "encryptionType": "AES256"
+        }
+    }
+}
