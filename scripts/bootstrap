@@ -5,6 +5,11 @@ set -o errexit
 set -o nounset
 set -o xtrace
 
+if [[ "$NIX_LD_LIB" == "" ]]; then
+    echo "Ensure you are in a nix shell"
+    exit
+fi
+
 # install protobuf extensions for go
 go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28
 go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
@@ -12,4 +17,7 @@ go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
 # install python development-time deps
 python -m venv venv
 venv/bin/python -m pip install -r requirements.txt
+
+python -m venv venv.server
+venv/bin/python -m pip install -r python/server/requirements.txt
 

@@ -17,6 +17,8 @@ pkgs.mkShell {
     fd
     # manipulate json
     jq
+    # test gRPC services
+    grpcurl
     # deployment
     docker
     minikube

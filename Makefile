@@ -1,6 +1,6 @@
-PYTHON = PYTHONPATH="$(CWD):${PYTHONPATH}" \
-	LD_LIBRARY_PATH="${NIX_LD_LIB}" \
-	venv/bin/python
+PYTHON_ENV = PYTHONPATH="$(CWD):${PYTHONPATH}" \
+	LD_LIBRARY_PATH="${NIX_LD_LIB}"
+PYTHON = $(PYTHON_ENV) venv/bin/python
 
 OUT = $(shell pwd)/build
 
@@ -42,6 +42,9 @@ benchmark: build
 	cat $(BENCHLOG) | tail -n 5
 
 # SERVER
+
+run-server:
+	$(PYTHON_ENV) venv.server/bin/python python/server/main.py
 
 LOCAL_TAG = softgrep/server
 server:
