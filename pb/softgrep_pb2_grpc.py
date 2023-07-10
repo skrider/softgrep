@@ -15,7 +15,7 @@ class ModelStub(object):
             channel: A grpc.Channel.
         """
         self.Predict = channel.unary_unary(
-                '/pb.Model/Predict',
+                '/softgrep.Model/Predict',
                 request_serializer=softgrep__pb2.Chunk.SerializeToString,
                 response_deserializer=softgrep__pb2.Embedding.FromString,
                 )
@@ -40,7 +40,7 @@ def add_ModelServicer_to_server(servicer, server):
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-            'pb.Model', rpc_method_handlers)
+            'softgrep.Model', rpc_method_handlers)
     server.add_generic_rpc_handlers((generic_handler,))
 
 
@@ -59,7 +59,7 @@ class Model(object):
             wait_for_ready=None,
             timeout=None,
             metadata=None):
-        return grpc.experimental.unary_unary(request, target, '/pb.Model/Predict',
+        return grpc.experimental.unary_unary(request, target, '/softgrep.Model/Predict',
             softgrep__pb2.Chunk.SerializeToString,
             softgrep__pb2.Embedding.FromString,
             options, channel_credentials,

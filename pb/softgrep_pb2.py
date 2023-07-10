@@ -13,7 +13,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0esoftgrep.proto\x12\x02pb\"\x18\n\x05\x43hunk\x12\x0f\n\x07\x63ontent\x18\x01 \x01(\t\"\x18\n\tEmbedding\x12\x0b\n\x03vec\x18\x01 \x03(\x02\x32.\n\x05Model\x12%\n\x07Predict\x12\t.pb.Chunk\x1a\r.pb.Embedding\"\x00\x42 Z\x1egithub.com/skrider/attainer/pbb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0esoftgrep.proto\x12\x08softgrep\"\x18\n\x05\x43hunk\x12\x0f\n\x07\x63ontent\x18\x01 \x01(\t\"\x18\n\tEmbedding\x12\x0b\n\x03vec\x18\x01 \x03(\x02\x32:\n\x05Model\x12\x31\n\x07Predict\x12\x0f.softgrep.Chunk\x1a\x13.softgrep.Embedding\"\x00\x42 Z\x1egithub.com/skrider/attainer/pbb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -22,10 +22,10 @@ if _descriptor._USE_C_DESCRIPTORS == False:
 
   DESCRIPTOR._options = None
   DESCRIPTOR._serialized_options = b'Z\036github.com/skrider/attainer/pb'
-  _globals['_CHUNK']._serialized_start=22
-  _globals['_CHUNK']._serialized_end=46
-  _globals['_EMBEDDING']._serialized_start=48
-  _globals['_EMBEDDING']._serialized_end=72
-  _globals['_MODEL']._serialized_start=74
-  _globals['_MODEL']._serialized_end=120
+  _globals['_CHUNK']._serialized_start=28
+  _globals['_CHUNK']._serialized_end=52
+  _globals['_EMBEDDING']._serialized_start=54
+  _globals['_EMBEDDING']._serialized_end=78
+  _globals['_MODEL']._serialized_start=80
+  _globals['_MODEL']._serialized_end=138
 # @@protoc_insertion_point(module_scope)

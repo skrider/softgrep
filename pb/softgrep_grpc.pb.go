@@ -35,7 +35,7 @@ func NewModelClient(cc grpc.ClientConnInterface) ModelClient {
 
 func (c *modelClient) Predict(ctx context.Context, in *Chunk, opts ...grpc.CallOption) (*Embedding, error) {
 	out := new(Embedding)
-	err := c.cc.Invoke(ctx, "/pb.Model/Predict", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/softgrep.Model/Predict", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +80,7 @@ func _Model_Predict_Handler(srv interface{}, ctx context.Context, dec func(inter
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/pb.Model/Predict",
+		FullMethod: "/softgrep.Model/Predict",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ModelServer).Predict(ctx, req.(*Chunk))
@@ -92,7 +92,7 @@ func _Model_Predict_Handler(srv interface{}, ctx context.Context, dec func(inter
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var Model_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "pb.Model",
+	ServiceName: "softgrep.Model",
 	HandlerType: (*ModelServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{

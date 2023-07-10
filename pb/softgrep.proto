@@ -2,7 +2,7 @@ syntax = "proto3";
 
 option go_package = "github.com/skrider/attainer/pb";
 
-package pb;
+package softgrep;
 
 message Chunk {
     string content = 1;
