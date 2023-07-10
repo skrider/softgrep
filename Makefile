@@ -1,5 +1,5 @@
 PYTHON = PYTHONPATH="$(CWD):${PYTHONPATH}" \
-	LD_LIBRARY_PATH="${SOFTGREP_NIX_CC_LIB}" \
+	LD_LIBRARY_PATH="${NIX_LD_LIB}" \
 	venv/bin/python
 
 OUT = $(shell pwd)/build
