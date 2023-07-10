@@ -1,4 +1,5 @@
 import asyncio
+import signal
 import logging
 import numpy as np
 from concurrent import futures
@@ -34,6 +35,16 @@ async def serve() -> None:
     listen_addr = "localhost:50051"
     server.add_insecure_port(listen_addr)
     logging.info("Starting server on %s", listen_addr)
+    
+    def stop_server():
+        server.stop(0)
+        loop.stop()
+
+    # Create a new event loop for the server
+    loop = asyncio.get_event_loop()
+    # Attach the signal handler
+    loop.add_signal_handler(signal.SIGINT, stop_server)
+
     await server.start()
     health_servicer.set("softgrep.Model", health_pb2.HealthCheckResponse.SERVING)
     logging.info("Waiting for termination")

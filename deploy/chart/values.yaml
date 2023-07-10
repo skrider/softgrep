@@ -1,10 +1,10 @@
 replicaCount: 1
 
 image:                                                                 
-  repository: nginx                                                    
+  repository: softgrep/server
   pullPolicy: IfNotPresent                                             
   # Overrides the image tag whose default is the chart appVersion.     
-  tag: ""                                                              
+  tag: "latest"                                                              
 
 service:
   type: ClusterIP

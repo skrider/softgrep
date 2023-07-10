@@ -48,8 +48,7 @@ run-server:
 
 LOCAL_TAG = softgrep/server
 server:
-	DOCKER_BUILDKIT=0 docker build . \
-		-t $(LOCAL_TAG)
+	DOCKER_BUILDKIT=0 docker build . -t $(LOCAL_TAG)
 
 SERVER_ARTIFACTS = ./deploy/artifacts/server
 ECR_JSON = $(SERVER_ARTIFACTS)/ecr-create-repository.json
@@ -68,6 +67,10 @@ docker-login:
 publish-server:
 	docker tag $(LOCAL_TAG):latest $(shell cat $(ECR_JSON) | jq --raw-output .repository.repositoryUri):latest
 	docker push $(shell cat $(ECR_JSON) | jq --raw-output .repository.repositoryUri):latest
+
+publish-server-local:
+	eval $(minikube docker-env)
+	DOCKER_BUILDKIT=0 docker build . -t $(LOCAL_TAG)
 
 # DEPLOYMENT
 
