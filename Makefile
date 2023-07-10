@@ -41,6 +41,36 @@ benchmark: build
 	time --append --output=$(BENCHLOG) $(BENCHCMD)
 	cat $(BENCHLOG) | tail -n 5
 
+# SERVER
+
 server:
-	$(PYTHON) ./python/server.py
+	DOCKER_BUILDKIT=0 docker build . \
+		-t softgrep/server
+
+# DEPLOYMENT
+
+bootstrap-cluster:
+	helm repo add kuberay https://ray-project.github.io/kuberay-helm/
+	helm template kuberay-operator kuberay/kuberay-operator --version 0.5.0 | kubectl apply -f -
+	echo "Press enter when operator is deployed"
+	read
+	helm template raycluster kuberay/ray-cluster --version 0.5.0 | kubectl apply -f -
+	kubectl get pods
+
+exec-head:
+	kubectl exec -it \
+		$(shell kubectl get pods --selector=ray.io/node-type=head -o custom-columns=POD:metadata.name --no-headers) \
+		-- \
+		python -c "import ray; ray.init(); print(ray.cluster_resources())"
+
+expose:
+	kubectl port-forward --address 0.0.0.0 service/raycluster-kuberay-head-svc 8265:8265
+
+cluster:
+	eksctl create cluster -f deploy/cluster.yaml
+
+create-ecr-repo:
+	aws ecr create-repository \
+		--repository-name softgrep \
+		--no-cli-pager | tee ./deploy/artifacts/ecr-repo.json
 
