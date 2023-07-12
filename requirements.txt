@@ -1,3 +1,4 @@
 grpcio==1.56.0
 grpcio-tools==1.56.0
+black==23.7.0
 

@@ -74,8 +74,8 @@ func NewTokenizer(filename string, reader io.Reader, config *config.Config) (Tok
 		return &StridedTokenizer{
 			b:       b,
 			prevEnd: 0,
-            stride: config.Stride,
-            overlap: config.Overlap,
+			stride:  config.Stride,
+			overlap: config.Overlap,
 		}, nil
 	}
 

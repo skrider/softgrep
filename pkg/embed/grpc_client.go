@@ -14,9 +14,8 @@ func NewClient(host string, port string) (pb.ModelClient, error) {
 
 	conn, err := grpc.Dial(fmt.Sprintf("%s:%s", host, port), opts...)
 	if err != nil {
-        return nil, err
+		return nil, err
 	}
 
 	return pb.NewModelClient(conn), nil
 }
-

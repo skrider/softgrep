@@ -1,6 +1,7 @@
 PYTHON_ENV = PYTHONPATH="$(CWD):${PYTHONPATH}" \
 	LD_LIBRARY_PATH="${NIX_LD_LIB}"
-PYTHON = $(PYTHON_ENV) venv/bin/python
+PYTHON_EXE = venv/bin/python
+PYTHON = $(PYTHON_ENV) $(PYTHON_EXE)
 
 OUT = $(shell pwd)/build
 
@@ -26,6 +27,7 @@ run:
 
 format:
 	fd -e go -x go fmt
+	fd -e py | $(PYTHON_ENV) xargs $(PYTHON_EXE) -m black
 
 build:
 	go build -o $(OUT)/softgrep cmd/softgrep/main.go 
@@ -69,7 +71,7 @@ publish-server:
 	docker push $(shell cat $(ECR_JSON) | jq --raw-output .repository.repositoryUri):latest
 
 publish-server-local:
-	eval $(minikube docker-env)
+	eval $$(minikube docker-env) ;\
 	DOCKER_BUILDKIT=0 docker build . -t $(LOCAL_TAG)
 
 # DEPLOYMENT

@@ -13,5 +13,3 @@ COPY python/server python/server
 EXPOSE 50051
 ENV PYTHONPATH="/app:$PYTHONPATH"
 
-ENTRYPOINT ["python", "python/server/main.py"]
-

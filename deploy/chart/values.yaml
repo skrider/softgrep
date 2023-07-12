@@ -2,13 +2,13 @@ replicaCount: 1
 
 image:                                                                 
   repository: softgrep/server
-  pullPolicy: IfNotPresent                                             
+  pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.     
   tag: "latest"                                                              
 
 service:
   type: ClusterIP
-  port: 80
+  port: 50051
 
 ingress:
   className: ""
