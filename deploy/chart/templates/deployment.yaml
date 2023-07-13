@@ -25,13 +25,8 @@ spec:
           command:
           - "python"
           - "/app/python/server/main.py"
-          - "--host=$(POD_IP)"
+          - "--host=0.0.0.0"
           - "--port={{ .Values.service.port }}"
-          env:
-          - name: POD_IP
-            valueFrom:
-              fieldRef:
-                fieldPath: status.podIP
           ports:
             - name: grpc
               containerPort: {{ .Values.service.port }}

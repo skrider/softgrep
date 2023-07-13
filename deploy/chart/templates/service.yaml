@@ -14,3 +14,4 @@ spec:
       protocol: TCP
   selector:
     {{- include "deploy.selectorLabels" . | nindent 4 }}
+  type: LoadBalancer

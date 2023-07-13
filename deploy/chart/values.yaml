@@ -10,14 +10,6 @@ service:
   type: ClusterIP
   port: 50051
 
-ingress:
-  className: ""
-  hosts:
-    - host: chart-example.local
-      paths:
-        - path: /
-          pathType: ImplementationSpecific
-
 resources:
   limits:
     cpu: 100m
