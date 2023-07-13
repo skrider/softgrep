@@ -50,7 +50,7 @@ run-server:
 
 LOCAL_TAG = softgrep/server
 server:
-	DOCKER_BUILDKIT=0 docker build . -t $(LOCAL_TAG)
+	docker buildx build . -t $(LOCAL_TAG)
 
 SERVER_ARTIFACTS = ./deploy/artifacts/server
 ECR_JSON = $(SERVER_ARTIFACTS)/ecr-create-repository.json
@@ -92,8 +92,9 @@ exec-head:
 		-- \
 		python -c "import ray; ray.init(); print(ray.cluster_resources())"
 
-expose:
-	kubectl port-forward --address 0.0.0.0 service/raycluster-kuberay-head-svc 8265:8265
+deploy:
+	helm template softgrep deploy/chart | kubectl apply -f -
+.PHONY: deploy
 
 cluster:
 	eksctl create cluster -f deploy/cluster.yaml

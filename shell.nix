@@ -33,5 +33,6 @@ echo nixpgks version: ${pkgs.lib.version}
 export NIX_LD_LIB=${pkgs.python310.stdenv.cc.cc.lib}/lib
 export AWS_DEFAULT_REGION=us-west-2
 source venv/bin/activate
+eval $(minikube docker-env)
   '';
 }
