@@ -27,6 +27,9 @@ spec:
           - "/app/python/server/main.py"
           - "--host=0.0.0.0"
           - "--port={{ .Values.service.port }}"
+          env:
+          - name: RAY_ADDRESS
+            value: "{{ include "deploy.fullname" . }}-kuberay-head-svc:6379"
           ports:
             - name: grpc
               containerPort: {{ .Values.service.port }}
