@@ -17,6 +17,8 @@ pkgs.mkShell {
     fd
     # manipulate json
     jq
+    # manipulate yaml for kubernetes
+    yq-go
     # test gRPC services
     grpcurl
     # deployment

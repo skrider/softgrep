@@ -92,10 +92,31 @@ exec-head:
 		-- \
 		python -c "import ray; ray.init(); print(ray.cluster_resources())"
 
-deploy:
-	helm template softgrep deploy/chart | kubectl apply -f -
-.PHONY: deploy
+create:
+	helm template softgrep deploy/chart --skip-crds | kubectl create --save-config -f -
+delete:
+	helm template softgrep deploy/chart --skip-crds | kubectl delete -f -
+apply:
+	helm template softgrep deploy/chart --skip-crds | kubectl apply -f -
+.PHONY: up down apply
 
 cluster:
 	eksctl create cluster -f deploy/cluster.yaml
 
+
+CRDS = customresourcedefinition/rayclusters.ray.io \
+customresourcedefinition/rayjobs.ray.io \
+customresourcedefinition/rayservices.ray.io
+crds:
+	for crd in $(CRDS); do\
+		kubectl describe $$crd 2> /dev/null ;\
+		if [[ $$? == '0' ]]; then \
+			echo deleting ;\
+			kubectl delete $$crd ;\
+		fi ;\
+	done
+	helm template softgrep deploy/chart --include-crds \
+		| yq 'select(.kind == "CustomResourceDefinition")' \
+		| kubectl create -f -
+
+.PHONY: crds
