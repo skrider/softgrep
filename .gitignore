@@ -4,3 +4,4 @@ main
 testdata
 build
 pb
+.direnv
