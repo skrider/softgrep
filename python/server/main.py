@@ -1,14 +1,15 @@
 import asyncio
+import time
 import signal
 import logging
-import numpy as np
-from concurrent import futures
 import argparse
 
+import numpy as np
 import grpc
 from grpc_health.v1 import health
 from grpc_health.v1 import health_pb2
 from grpc_health.v1 import health_pb2_grpc
+
 from pb import softgrep_pb2
 from pb import softgrep_pb2_grpc
 
@@ -36,7 +37,7 @@ class ModelServicer(softgrep_pb2_grpc.Model):
 class LoggingInterceptor(grpc.aio.ServerInterceptor):
     async def intercept_service(self, continuation, handler_call_details):
         method = handler_call_details.method
-        logging.info(f"Received request: {method}")
+        logging.info(f"{time.asctime(time.localtime())} Received request: {method}")
         return await continuation(handler_call_details)
 
 async def serve() -> None:
