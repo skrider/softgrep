@@ -19,6 +19,8 @@ pkgs.mkShell {
     jq
     # manipulate yaml for kubernetes
     yq-go
+    # hydrate yaml files for k8s deploy - not the gnu one
+    envsubst
     # test gRPC services
     grpcurl
     # deployment
@@ -34,6 +36,6 @@ pkgs.mkShell {
 echo nixpgks version: ${pkgs.lib.version}
 export NIX_LD_LIB=${pkgs.python310.stdenv.cc.cc.lib}/lib
 export AWS_DEFAULT_REGION=us-west-2
-eval $(minikube docker-env)
+export PATH="$PATH:$(pwd)/scripts"
   '';
 }

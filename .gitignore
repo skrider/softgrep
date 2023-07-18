@@ -1,7 +1,8 @@
 venv
 venv.server
 main
-testdata
+testdata/scratch
 build
 pb
 .direnv
+.env

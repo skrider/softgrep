@@ -1,0 +1,20 @@
+replicaCount: 1
+
+image:                                                                 
+  repository: ${IMAGE_REPOSITORY}
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.     
+  tag: "latest"                                                              
+
+service:
+  type: ClusterIP
+  port: 50051
+
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+

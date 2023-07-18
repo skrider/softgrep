@@ -1,7 +1,10 @@
+DEPLOY_ENV = $(if $(SOFTGREP_ENV),$(SOFTGREP_ENV),development)
+
 PYTHON_ENV = PYTHONPATH="$(CWD):${PYTHONPATH}" \
 	LD_LIBRARY_PATH="${NIX_LD_LIB}"
 PYTHON_EXE = venv/bin/python
 PYTHON = $(PYTHON_ENV) $(PYTHON_EXE)
+
 
 OUT = $(shell pwd)/build
 
@@ -66,9 +69,10 @@ docker-login:
 			--username AWS \
 			--password-stdin $(shell cat $(ECR_JSON) | jq .repository.repositoryUri)
 
+SERVER_ECR_REPO = $(shell cat $(ECR_JSON) | jq --raw-output .repository.repositoryUri)
 publish-server:
 	docker tag $(LOCAL_TAG):latest $(shell cat $(ECR_JSON) | jq --raw-output .repository.repositoryUri):latest
-	docker push $(shell cat $(ECR_JSON) | jq --raw-output .repository.repositoryUri):latest
+	docker push $(SERVER_ECR_REPO):latest
 
 publish-server-local:
 	eval $$(minikube docker-env) ;\
@@ -92,13 +96,17 @@ exec-head:
 		-- \
 		python -c "import ray; ray.init(); print(ray.cluster_resources())"
 
+HELM_VALUES = ./deploy/chart/values.$(DEPLOY_ENV).yaml
+HELM_TEMPLATE = cat $(HELM_VALUES) \
+	| IMAGE_REPOSITORY=$(SERVER_ECR_REPO) envsubst \
+	| helm template softgrep deploy/chart --skip-crds --values -
 create:
-	helm template softgrep deploy/chart --skip-crds | kubectl create --save-config -f -
+	$(HELM_TEMPLATE) | kubectl create --save-config -f -
 delete:
-	helm template softgrep deploy/chart --skip-crds | kubectl delete -f -
+	$(HELM_TEMPLATE) | kubectl delete -f -
 apply:
-	helm template softgrep deploy/chart --skip-crds | kubectl apply -f -
-.PHONY: up down apply
+	$(HELM_TEMPLATE) | kubectl apply -f -
+.PHONY: create delete apply
 
 cluster:
 	eksctl create cluster -f deploy/cluster.yaml
@@ -120,3 +128,10 @@ crds:
 		| kubectl create -f -
 
 .PHONY: crds
+
+# basic integration tests
+SERVER_URL = $(shell kubectl get service/softgrep --output json \
+	| jq .status.loadBalancer.ingress[0].hostname --raw-output)
+test-predict:
+	time grpcurl -proto pb/softgrep.proto -plaintext "$(SERVER_URL):50051" softgrep.Model/Predict \
+		<< ./testdata/requests/predict/hello.json

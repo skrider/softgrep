@@ -1,0 +1,11 @@
+#!/bin/env bash
+
+# this script is here to make it easy to switch in and out of minikube docker context so that
+# local images can be built inside minikube rather than on the root docker daemon
+
+if [[ $1 == '-u' ]]; then
+    eval $(minikube docker-env -u)
+else
+    eval $(minikube docker-env)
+fi
+
