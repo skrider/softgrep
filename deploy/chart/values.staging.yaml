@@ -2,7 +2,8 @@ replicaCount: 1
 
 image:                                                                 
   repository: ${IMAGE_REPOSITORY}
-  pullPolicy: IfNotPresent
+  # set pullPolicy to always for tight test cycles bypassing CI
+  pullPolicy: Always
   # Overrides the image tag whose default is the chart appVersion.     
   tag: "latest"                                                              
 
