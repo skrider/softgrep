@@ -13,6 +13,14 @@ from grpc_health.v1 import health_pb2_grpc
 from pb import softgrep_pb2
 from pb import softgrep_pb2_grpc
 
+import ray
+
+logging.basicConfig(level=logging.INFO)
+
+# address is populated by kubernetes via RAY_ADDRESS
+logging.info("initializing ray")
+ray.init()
+logging.info(f"ray initialized with {ray.cluster_resources()}")
 
 def parse_arguments():
     logging.info("Parsing arguments")

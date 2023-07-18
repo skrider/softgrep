@@ -29,7 +29,7 @@ spec:
           - "--port={{ .Values.service.port }}"
           env:
           - name: RAY_ADDRESS
-            value: "{{ include "deploy.fullname" . }}-kuberay-head-svc:6379"
+            value: "ray://{{ include "deploy.fullname" . }}-kuberay-head-svc:10001"
           ports:
             - name: grpc
               containerPort: {{ .Values.service.port }}
