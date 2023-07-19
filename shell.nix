@@ -31,6 +31,7 @@ pkgs.mkShell {
     kubectl
     eksctl
     awscli2
+    kops
   ];
   shellHook = ''
 echo nixpgks version: ${pkgs.lib.version}
