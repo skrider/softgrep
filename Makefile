@@ -82,6 +82,8 @@ ecr-publish:
 
 # CLUSTER
 EKS_CONFIG_FILE = deploy/cluster.$(DEPLOY_ENV).yaml
+EKS_CONFIG = cat $(EKS_CONFIG_FILE) \
+		| CLUSTER_NAME=$(CLUSTER_NAME) AWS_REGION=$(AWS_REGION) envsubst
 HELM_VALUES = ./deploy/chart/values.$(DEPLOY_ENV).yaml
 HELM_ENV = IMAGE_REPOSITORY=$(SERVER_ECR_REPO)
 HELM_TEMPLATE = cat $(HELM_VALUES) \
@@ -92,12 +94,15 @@ template:
 	$(HELM_TEMPLATE)
 
 $(CLUSTER_NAME)-create:
-	cat $(EKS_CONFIG_FILE) \
-		| CLUSTER_NAME=$(CLUSTER_NAME) AWS_REGION=$(AWS_REGION) envsubst \
-		| eksctl create cluster -f -
+	$(EKS_CONFIG) | eksctl create cluster -f -
+
+$(CLUSTER_NAME)-upgrade:
+	$(EKS_CONFIG) | eksctl upgrade cluster -f - --approve
 
 $(CLUSTER_NAME)-delete:
 	eksctl delete cluster --name $(CLUSTER_NAME)
+
+
 
 $(CLUSTER_NAME)-resources-create: 
 	$(HELM_TEMPLATE) | kubectl create --save-config -f -

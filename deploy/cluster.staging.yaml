@@ -20,6 +20,7 @@ managedNodeGroups:
     iam:
       withAddonPolicies:
         autoScaler: true
+    # needed to propagate taints
     propagateASGTags: true
   - name: ${CLUSTER_NAME}-ng-2
     instanceType: p2.xlarge
@@ -34,5 +35,9 @@ managedNodeGroups:
         autoScaler: true
     labels: 
       k8s.amazonaws.com/accelerator: nvidia-tesla-k80
+    taints:
+    - key: softgrep.ai/accelerator
+      value: "true"
+      effect: NoExecute
     propagateASGTags: true
 
