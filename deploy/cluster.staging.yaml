@@ -10,7 +10,7 @@ metadata:
 
 managedNodeGroups:
   - name: ${CLUSTER_NAME}-ng-1
-    instanceType: m5.large
+    instanceType: m5.xlarge
     minSize: 1
     maxSize: 2
     volumeSize: 80
