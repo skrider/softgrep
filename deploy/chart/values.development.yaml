@@ -18,3 +18,6 @@ resources:
     cpu: 100m
     memory: 512Mi
 
+cluster-autoscaler:
+  enabled: false
+

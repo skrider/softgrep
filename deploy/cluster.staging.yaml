@@ -1,0 +1,38 @@
+# cluster.yaml
+# A cluster with two managed nodegroups
+---
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: ${CLUSTER_NAME}
+  region: ${AWS_REGION}
+
+managedNodeGroups:
+  - name: ${CLUSTER_NAME}-ng-1
+    instanceType: m5.large
+    minSize: 1
+    maxSize: 2
+    volumeSize: 80
+    ssh:
+      allow: true
+      publicKeyPath: ~/.ssh/id_ec2_rsa.pub
+    iam:
+      withAddonPolicies:
+        autoScaler: true
+    propagateASGTags: true
+  - name: ${CLUSTER_NAME}-ng-2
+    instanceType: p2.xlarge
+    minSize: 1
+    maxSize: 2
+    volumeSize: 80
+    ssh:
+      allow: true
+      publicKeyPath: ~/.ssh/id_ec2_rsa.pub
+    iam:
+      withAddonPolicies:
+        autoScaler: true
+    labels: 
+      k8s.amazonaws.com/accelerator: nvidia-tesla-k80
+    propagateASGTags: true
+

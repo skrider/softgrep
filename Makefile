@@ -1,11 +1,9 @@
-DEPLOY_ENV = $(if $(SOFTGREP_ENV),$(SOFTGREP_ENV),development)
-
 PYTHON_ENV = PYTHONPATH="$(CWD):${PYTHONPATH}" \
 	LD_LIBRARY_PATH="${NIX_LD_LIB}"
 PYTHON_EXE = venv/bin/python
 PYTHON = $(PYTHON_ENV) $(PYTHON_EXE)
 
-
+# BUILD
 OUT = $(shell pwd)/build
 
 pb: pb/softgrep.proto
@@ -16,6 +14,9 @@ pb: pb/softgrep.proto
 		pb/softgrep.proto
 .PHONY: pb
 
+# CLI
+BENCH_LOG = $(OUT)/benchmark.log
+BENCH_CMD = $(OUT)/softgrep ./testdata/grpc
 languages: tool/generate_ts_import
 	go run tool/generate_ts_import/main.go > pkg/tokenize/languages.go
 
@@ -36,102 +37,99 @@ build:
 	go build -o $(OUT)/softgrep cmd/softgrep/main.go 
 .PHONY: build
 
-BENCHLOG = $(OUT)/benchmark.log
-BENCHCMD = $(OUT)/softgrep ./testdata/grpc
+# message is passed in via env
 benchmark: build
-	echo --- >> $(BENCHLOG)
-	echo $(MESSAGE) >> $(BENCHLOG)
-	git rev-parse HEAD >> $(BENCHLOG)
-	echo $(BENCHCMD): >> $(BENCHLOG)
-	time --append --output=$(BENCHLOG) $(BENCHCMD)
-	cat $(BENCHLOG) | tail -n 5
+	echo --- >> $(BENCH_LOG)
+	echo $(MESSAGE) >> $(BENCH_LOG)
+	git rev-parse HEAD >> $(BENCH_LOG)
+	echo $(BENCH_CMD): >> $(BENCHLOG)
+	time --append --output=$(BENCH_LOG) $(BENCHCMD)
+	cat $(BENCH_LOG) | tail -n 5
 
 # SERVER
-
 run-server:
 	$(PYTHON_ENV) venv.server/bin/python python/server/main.py
 
-LOCAL_TAG = softgrep/server
 server:
 	docker buildx build . -t $(LOCAL_TAG)
 
-SERVER_ARTIFACTS = ./deploy/artifacts/server
+# DEPLOY
+DEPLOY_ARTIFACTS = ./deploy/artifacts
+DEPLOY_ENV = $(if $(SOFTGREP_ENV),$(SOFTGREP_ENV),development)
+AWS_REGION = us-west-2
+CLUSTER_NAME = softgrep-$(DEPLOY_ENV)
+
+# SERVER
+LOCAL_TAG = softgrep/server
+SERVER_ARTIFACTS = $(DEPLOY_ARTIFACTS)/server
 ECR_JSON = $(SERVER_ARTIFACTS)/ecr-create-repository.json
-create-ecr-repo:
+SERVER_ECR_REPO = $(shell cat $(ECR_JSON) | jq --raw-output .repository.repositoryUri)
+ecr-create:
 	mkdir -p $(SERVER_ARTIFACTS)
 	aws ecr create-repository \
 		--repository-name softgrep/server \
 		--no-cli-pager | tee $(ECR_JSON)
 
-docker-login:
-	aws ecr get-login-password --region $(REGION) \
+ecr-login:
+	aws ecr get-login-password --region $(AWS_REGION) \
 		| docker login \
 			--username AWS \
 			--password-stdin $(shell cat $(ECR_JSON) | jq .repository.repositoryUri)
 
-SERVER_ECR_REPO = $(shell cat $(ECR_JSON) | jq --raw-output .repository.repositoryUri)
-publish-server:
+ecr-publish:
 	docker tag $(LOCAL_TAG):latest $(shell cat $(ECR_JSON) | jq --raw-output .repository.repositoryUri):latest
 	docker push $(SERVER_ECR_REPO):latest
 
-publish-server-local:
-	eval $$(minikube docker-env) ;\
-	DOCKER_BUILDKIT=0 docker build . -t $(LOCAL_TAG)
-
-# DEPLOYMENT
-
-REGION = us-west-2
-
-bootstrap-cluster:
-	helm repo add kuberay https://ray-project.github.io/kuberay-helm/
-	helm template kuberay-operator kuberay/kuberay-operator --version 0.5.0 | kubectl apply -f -
-	echo "Press enter when operator is deployed"
-	read
-	helm template raycluster kuberay/ray-cluster --version 0.5.0 | kubectl apply -f -
-	kubectl get pods
-
-exec-head:
-	kubectl exec -it \
-		$(shell kubectl get pods --selector=ray.io/node-type=head -o custom-columns=POD:metadata.name --no-headers) \
-		-- \
-		python -c "import ray; ray.init(); print(ray.cluster_resources())"
-
+# CLUSTER
+EKS_CONFIG_FILE = deploy/cluster.$(DEPLOY_ENV).yaml
 HELM_VALUES = ./deploy/chart/values.$(DEPLOY_ENV).yaml
+HELM_ENV = IMAGE_REPOSITORY=$(SERVER_ECR_REPO)
 HELM_TEMPLATE = cat $(HELM_VALUES) \
-	| IMAGE_REPOSITORY=$(SERVER_ECR_REPO) envsubst \
+	| $(HELM_ENV) envsubst \
 	| helm template softgrep deploy/chart --skip-crds --values -
-create:
+
+$(CLUSTER_NAME)-create:
+	cat $(EKS_CONFIG_FILE) \
+		| CLUSTER_NAME=$(CLUSTER_NAME) AWS_REGION=$(AWS_REGION) envsubst \
+		| eksctl create cluster -f -
+
+$(CLUSTER_NAME)-delete:
+	eksctl delete cluster --name $(CLUSTER_NAME)
+
+$(CLUSTER_NAME)-resources-create: 
 	$(HELM_TEMPLATE) | kubectl create --save-config -f -
-delete:
+
+$(CLUSTER_NAME)-resources-delete:
 	$(HELM_TEMPLATE) | kubectl delete -f -
-apply:
+
+$(CLUSTER_NAME)-resources-apply:
 	$(HELM_TEMPLATE) | kubectl apply -f -
-.PHONY: create delete apply
 
-cluster:
-	eksctl create cluster -f deploy/cluster.yaml
-
+.PHONY: $(CLUSTER_NAME)-*
 
 CRDS = customresourcedefinition/rayclusters.ray.io \
 customresourcedefinition/rayjobs.ray.io \
 customresourcedefinition/rayservices.ray.io
-crds:
-	for crd in $(CRDS); do\
+$(CLUSTER_NAME)-crds:
+	$(foreach crd,$(CRDS),\
 		kubectl describe $$crd 2> /dev/null ;\
 		if [[ $$? == '0' ]]; then \
 			echo deleting ;\
 			kubectl delete $$crd ;\
-		fi ;\
-	done
-	helm template softgrep deploy/chart --include-crds \
+		fi; \
+	)
+	cat $(HELM_VALUES) \
+		| $(HELM_ENV) envsubst \
+		| helm template softgrep deploy/chart --values - --include-crds \
 		| yq 'select(.kind == "CustomResourceDefinition")' \
 		| kubectl create -f -
 
-.PHONY: crds
+.PHONY: $(CLUSTER_NAME)-*
 
-# basic integration tests
+# TEST
 SERVER_URL = $(shell kubectl get service/softgrep --output json \
 	| jq .status.loadBalancer.ingress[0].hostname --raw-output)
 test-predict:
 	time grpcurl -proto pb/softgrep.proto -plaintext "$(SERVER_URL):50051" softgrep.Model/Predict \
 		<< ./testdata/requests/predict/hello.json
+

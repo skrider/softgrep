@@ -6,7 +6,6 @@ metadata:
   labels:
     {{- include "deploy.labels" . | nindent 4 }}
 spec:
-  type: {{ .Values.service.type }}
   ports:
     - name: grpc
       port: {{ .Values.service.port }}
