@@ -88,6 +88,9 @@ HELM_TEMPLATE = cat $(HELM_VALUES) \
 	| $(HELM_ENV) envsubst \
 	| helm template softgrep deploy/chart --skip-crds --values -
 
+template:
+	$(HELM_TEMPLATE)
+
 $(CLUSTER_NAME)-create:
 	cat $(EKS_CONFIG_FILE) \
 		| CLUSTER_NAME=$(CLUSTER_NAME) AWS_REGION=$(AWS_REGION) envsubst \
@@ -112,10 +115,10 @@ customresourcedefinition/rayjobs.ray.io \
 customresourcedefinition/rayservices.ray.io
 $(CLUSTER_NAME)-crds:
 	$(foreach crd,$(CRDS),\
-		kubectl describe $$crd 2> /dev/null ;\
+		kubectl describe $(crd) 2> /dev/null ;\
 		if [[ $$? == '0' ]]; then \
 			echo deleting ;\
-			kubectl delete $$crd ;\
+			kubectl delete $(crd) ;\
 		fi; \
 	)
 	cat $(HELM_VALUES) \

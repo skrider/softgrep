@@ -63,16 +63,6 @@ async def serve() -> None:
     server.add_insecure_port(listen_addr)
     logging.info("Starting server on %s", listen_addr)
 
-    # Create a new event loop for the server
-    loop = asyncio.get_event_loop()
-
-    def stop_server():
-        # queue a server halt
-        asyncio.get_event_loop().create_task(server.stop(0))
-
-    # Attach the signal handler
-    loop.add_signal_handler(signal.SIGINT, stop_server)
-
     await server.start()
     health_servicer.set("liveness", health_pb2.HealthCheckResponse.SERVING)
     health_servicer.set("readiness", health_pb2.HealthCheckResponse.SERVING)
@@ -80,5 +70,8 @@ async def serve() -> None:
     await server.wait_for_termination()
 
 if __name__ == "__main__":
+    loop = asyncio.get_event_loop()
     logging.basicConfig(level=logging.INFO)
-    asyncio.run(serve())
+    loop.add_signal_handler(signal.SIGINT, exit)
+    loop.run_until_complete(serve())
+
