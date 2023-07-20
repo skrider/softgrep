@@ -6,3 +6,4 @@ build
 pb
 .direnv
 .env
+deploy/artifacts/cluster/secret-access-key.json
