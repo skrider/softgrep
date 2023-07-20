@@ -3,8 +3,8 @@ let
     pkgs = import ../../nixpkgs {};
     mkKops = pkgs.mkKops;
     kopsPatch = mkKops rec {
-        version = "1.26.4";
-        sha256 = "1jfihw41cjydfq27qybdvwns7ip5n9yrgfpqwjph0jfqia91lz3l";
+        version = "1.27.0";
+        sha256 = "1nmfman699rh80r5pslxqicnd5zsbdsb2nk5crbwbg7zwjl9v4sw";
         rev = "v${version}";
     };
 in
