@@ -196,6 +196,12 @@ kops-replace:
 kops-update:
 	$(KOPS) update cluster --name $(KOPS_NAME) --yes --admin
 
+kops-edit:
+	$(KOPS) edit instancegroup nodes-us-west-2c
+
+kops-rolling-update:
+	$(KOPS) rolling-update cluster --yes --force --cloudonly
+
 kops-validate:
 	$(KOPS) validate cluster --wait 10m
 

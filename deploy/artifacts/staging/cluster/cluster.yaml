@@ -13,6 +13,21 @@ spec:
   channel: stable
   cloudProvider: aws
   configBase: s3://softgrep-staging-state-store-dcafac4f/softgrep-staging.k8s.local
+  clusterAutoscaler:
+    enabled: true
+    expander: least-waste
+    balanceSimilarNodeGroups: false
+    awsUseStaticInstanceList: false
+    scaleDownUtilizationThreshold: "0.5"
+    skipNodesWithLocalStorage: false
+    skipNodesWithSystemPods: false
+    newPodScaleUpDelay: 0s
+    scaleDownDelayAfterAdd: 0m15s
+    scaleDownUnneededTime: 0m15s
+    scaleDownUnreadyTime: 0m15s
+    image: docker.io/bitnami/cluster-autoscaler:1.27.2-debian-11-r27
+    cpuRequest: "100m"
+    memoryRequest: "300Mi"
   etcdClusters:
   - cpuRequest: 200m
     etcdMembers:
@@ -96,7 +111,7 @@ metadata:
 spec:
   image: 099720109477/ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-20230608
   machineType: m5.xlarge
-  maxSize: 1
+  maxSize: 4
   minSize: 1
   role: Node
   subnets:
