@@ -240,5 +240,5 @@ SERVER_URL = $(shell kubectl get service/softgrep --output json \
 	| jq .status.loadBalancer.ingress[0].hostname --raw-output)
 test-predict:
 	time grpcurl -proto pb/softgrep.proto -plaintext "$(SERVER_URL):50051" softgrep.Model/Predict \
-		<< ./testdata/requests/predict/hello.json
+		< ./testdata/requests/predict/hello.json
 

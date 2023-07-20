@@ -14,12 +14,21 @@ from pb import softgrep_pb2
 from pb import softgrep_pb2_grpc
 
 import ray
+from ray.runtime_env import RuntimeEnv
+
+import rpdb
 
 logging.basicConfig(level=logging.INFO)
 
 # address is populated by kubernetes via RAY_ADDRESS
 logging.info("initializing ray")
-ray.init()
+
+runtime_env = RuntimeEnv(
+    pip=["numpy"]
+)
+
+ray.init(runtime_env=runtime_env)
+
 logging.info(f"ray initialized with {ray.cluster_resources()}")
 
 def parse_arguments():
@@ -31,6 +40,9 @@ def parse_arguments():
     args = parser.parse_args()
     return args.host, args.port
 
+@ray.remote
+def foo():
+    return np.random.randn(100)
 
 class ModelServicer(softgrep_pb2_grpc.Model):
     async def Predict(
@@ -38,8 +50,9 @@ class ModelServicer(softgrep_pb2_grpc.Model):
         request: softgrep_pb2.Chunk,
         context: grpc.aio.ServicerContext,
     ) -> softgrep_pb2.Embedding:
-        print(request.content)
-        return softgrep_pb2.Embedding(vec=np.random.randn(100))
+        handle = foo.remote()
+        vec = ray.get(handle)
+        return softgrep_pb2.Embedding(vec=vec)
 
 
 class LoggingInterceptor(grpc.aio.ServerInterceptor):

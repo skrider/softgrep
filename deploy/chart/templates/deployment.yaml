@@ -34,15 +34,21 @@ spec:
             - name: grpc
               containerPort: {{ .Values.service.port }}
               protocol: TCP
+            - name: rpdb
+              containerPort: {{ .Values.rpdbPort }}
+              protocol: TCP
           livenessProbe:
-            grpc:
-              port: {{ .Values.service.port }}
-            initialDelaySeconds: 4
-            periodSeconds: 2
+            exec:
+              command: 
+              - sh
+              - -c
+              - "ps -e | grep python | grep -v grep"
+            initialDelaySeconds: 8
+            periodSeconds: 10
           readinessProbe:
             grpc:
               port: {{ .Values.service.port }}
-            initialDelaySeconds: 4
+            initialDelaySeconds: 8
             periodSeconds: 2
           resources:
             {{- toYaml .Values.resources | nindent 12 }}

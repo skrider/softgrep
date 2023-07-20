@@ -9,6 +9,8 @@ image:
 service:
   port: 50051
 
+rpdbPort: 4444
+
 resources:
   limits:
     cpu: 100m
