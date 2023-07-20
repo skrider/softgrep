@@ -205,17 +205,6 @@ kops-rolling-update:
 kops-validate:
 	$(KOPS) validate cluster --wait 10m
 
-$(CLUSTER_NAME)-create:
-	$(EKS_CONFIG) | eksctl create cluster -f -
-
-$(CLUSTER_NAME)-upgrade:
-	$(EKS_CONFIG) | eksctl upgrade cluster -f - --approve
-
-$(CLUSTER_NAME)-delete:
-	eksctl delete cluster --name $(CLUSTER_NAME)
-
-
-
 $(CLUSTER_NAME)-resources-create: 
 	$(HELM_TEMPLATE) | kubectl create --save-config -f -
 
