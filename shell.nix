@@ -27,6 +27,7 @@ pkgs.mkShell {
         kubernetes-helm
         k9s
         kubectl
+        kubectx
         eksctl
         awscli2
         kopsPatch

@@ -1,9 +1,12 @@
 dependencies:
 - name: kuberay-operator
   repository: https://ray-project.github.io/kuberay-helm
-  version: 0.5.0
+  version: 0.6.0-rc.1
 - name: ray-cluster
   repository: https://ray-project.github.io/kuberay-helm
-  version: 0.5.0
-digest: sha256:86053412715519e4f0066fa200bb3324b490e857990011dd0e546595be43c409
-generated: "2023-07-10T14:41:17.657828358-07:00"
+  version: 0.6.0-rc.1
+- name: gpu-operator
+  repository: https://helm.ngc.nvidia.com/nvidia
+  version: v23.3.2
+digest: sha256:4569699467f23340e02202f517a8a3df548c04a00bb05d44f5c2f93d498bce14
+generated: "2023-07-26T15:50:41.554612173-07:00"

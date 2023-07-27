@@ -22,12 +22,15 @@ spec:
     skipNodesWithLocalStorage: false
     skipNodesWithSystemPods: false
     newPodScaleUpDelay: 0s
-    scaleDownDelayAfterAdd: 0m15s
-    scaleDownUnneededTime: 0m15s
-    scaleDownUnreadyTime: 0m15s
+    scaleDownDelayAfterAdd: 1m0s
+    scaleDownUnneededTime: 1m0s
+    scaleDownUnreadyTime: 1m0s
     image: docker.io/bitnami/cluster-autoscaler:1.27.2-debian-11-r27
     cpuRequest: "100m"
     memoryRequest: "300Mi"
+  containerd:
+    nvidiaGPU:
+      enabled: true
   etcdClusters:
   - cpuRequest: 200m
     etcdMembers:
@@ -110,10 +113,37 @@ metadata:
   name: nodes-us-west-2c
 spec:
   image: 099720109477/ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-20230608
+  nodeLabels:
+    softgrep/gpu: "false"
   machineType: m5.xlarge
   maxSize: 4
   minSize: 1
   role: Node
   subnets:
   - us-west-2c
+
+---
+
+apiVersion: kops.k8s.io/v1alpha2
+kind: InstanceGroup
+metadata:
+  labels:
+    kops.k8s.io/cluster: softgrep-staging.k8s.local
+  name: gpu-nodes-us-west-2c
+spec:
+  image: 099720109477/ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-20230608
+  nodeLabels:
+    kops.k8s.io/instancegroup: gpu-nodes-us-west-2c
+    k8s.amazonaws.com/accelerator: nvidia-tesla-k80
+  machineType: p2.xlarge
+  maxSize: 4
+  minSize: 1
+  role: Node
+  subnets:
+  - us-west-2c
+  rootVolumeSize: 256
+  rootVolumeType: gp3
+  rootVolumeIops: 6000
+  rootVolumeThroughput: 300
+  rootVolumeOptimization: true
 

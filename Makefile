@@ -93,7 +93,7 @@ HELM_TEMPLATE = cat $(HELM_VALUES) \
 	| helm template softgrep deploy/chart --skip-crds --values -
 
 template:
-	$(HELM_TEMPLATE)
+	$(HELM_TEMPLATE) --debug
 
 vpc:
 	aws ec2 create-vpc \
@@ -191,19 +191,28 @@ kops-init:
 	$(KOPS) create -f $(CLUSTER_ARTIFACTS)/cluster.yaml
 
 kops-replace:
-	$(KOPS) replace -f $(CLUSTER_ARTIFACTS)/cluster.yaml
+	$(KOPS) replace -f $(CLUSTER_ARTIFACTS)/cluster.yaml --force
 
 kops-update:
 	$(KOPS) update cluster --name $(KOPS_NAME) --yes --admin
 
+kops-check:
+	$(KOPS) update cluster --name $(KOPS_NAME)
+
 kops-edit:
 	$(KOPS) edit instancegroup nodes-us-west-2c
 
-kops-rolling-update:
+kops-force-rolling-update:
 	$(KOPS) rolling-update cluster --yes --force --cloudonly
+
+kops-rolling-update:
+	$(KOPS) rolling-update cluster --yes --force
 
 kops-validate:
 	$(KOPS) validate cluster --wait 10m
+
+kops-set-key:
+	$(KOPS) create secret sshpublickey $(KOPS_NAME) -i ~/.ssh/id_ec2_rsa.pub
 
 $(CLUSTER_NAME)-resources-create: 
 	$(HELM_TEMPLATE) | kubectl create --save-config -f -
@@ -218,7 +227,10 @@ $(CLUSTER_NAME)-resources-apply:
 
 CRDS = customresourcedefinition/rayclusters.ray.io \
 customresourcedefinition/rayjobs.ray.io \
-customresourcedefinition/rayservices.ray.io
+customresourcedefinition/rayservices.ray.io \
+customresourcedefinition/clusterpolicies.nvidia.com \
+customresourcedefinition/nodefeatures.nfd.k8s-sigs.io \
+customresourcedefinition/nodefeaturerules.nfd.k8s-sigs.io
 $(CLUSTER_NAME)-crds:
 	$(foreach crd,$(CRDS),\
 		kubectl describe $(crd) 2> /dev/null ;\

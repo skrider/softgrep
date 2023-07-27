@@ -24,7 +24,22 @@ logging.basicConfig(level=logging.INFO)
 logging.info("initializing ray")
 
 runtime_env = RuntimeEnv(
-    pip=["numpy"]
+    conda="""
+name: env-name
+channels:
+  - nvidia
+  - pytorch
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.7
+  - codecov
+  - pytorch
+  - torchvision
+  - torchaudio
+  - pytorch-cuda=11.8
+  - numpy
+"""
 )
 
 ray.init(runtime_env=runtime_env)
@@ -40,9 +55,9 @@ def parse_arguments():
     args = parser.parse_args()
     return args.host, args.port
 
-@ray.remote
+@ray.remote(num_gpus=1)
 def foo():
-    return np.random.randn(100)
+    return __import__("torch").cuda.is_available()
 
 class ModelServicer(softgrep_pb2_grpc.Model):
     async def Predict(
@@ -52,6 +67,7 @@ class ModelServicer(softgrep_pb2_grpc.Model):
     ) -> softgrep_pb2.Embedding:
         handle = foo.remote()
         vec = ray.get(handle)
+        rpdb.set_trace()
         return softgrep_pb2.Embedding(vec=vec)
 
 
