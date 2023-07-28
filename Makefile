@@ -107,112 +107,12 @@ VPC=$(shell jq .Vpc.VpcId $(DEPLOY_ARTIFACTS)/create-vpc.json)
 vpc-delete:
 	aws ec2 delete-vpc --vpc-id $(VPC)
 
-KOPS_USER=kops
-kops-user:
-	aws iam create-user --user-name $(KOPS_USER)
+TERRAFORM = TF_VAR_region=$(AWS_REGION) \
+	TF_VAR_env=$(SOFTGREP_ENV) \
+	terraform
+ter-apply:
+	$(TERRAFORM) -chdir=deploy apply
 
-kops-configure-user:
-	aws iam delete-policy
-	aws iam create-policy \
-		--policy-name KopsPolicy \
-		--policy-document file://$(CLUSTER_ARTIFACTS)/kops-role.json \
-		| tee $(CLUSTER_ARTIFACTS)/create-policy.json
-	aws iam attach-user-policy \
-		--policy-arn arn:aws:iam::$(AWS_ACCOUNT):policy/KopsPolicy \
-		--user-name $(KOPS_USER)
-
-kops-update-policy:
-	aws iam create-policy-version \
-		--policy-arn arn:aws:iam::$(AWS_ACCOUNT):policy/KopsPolicy \
-		--policy-document file://$(CLUSTER_ARTIFACTS)/kops-role.json \
-		--set-as-default
-
-kops-access-key:
-	aws iam create-access-key --user-name $(KOPS_USER) \
-		| tee $(CLUSTER_ARTIFACTS)/secret-access-key.json
-
-kops-bucket:
-	aws s3api create-bucket \
-		--create-bucket-configuration LocationConstraint=$(AWS_REGION) \
-		--bucket $(CLUSTER_NAME)-state-store-$(shell uuidgen | cut -c -8) \
-		--region $(AWS_REGION) \
-		| tee $(CLUSTER_ARTIFACTS)/create-bucket.json
-
-KOPS_BUCKET = $(shell jq --raw-output .Location $(CLUSTER_ARTIFACTS)/create-bucket.json \
-			  | cut -c 8- \
-			  | sed 's/\..*//')
-kops-configure-bucket:
-	aws s3api put-bucket-versioning \
-		--bucket $(KOPS_BUCKET) \
-		--versioning-configuration Status=Enabled
-
-kops-oidc-bucket:
-	aws s3api create-bucket \
-		--create-bucket-configuration LocationConstraint=$(AWS_REGION) \
-		--region $(AWS_REGION) \
-		--bucket $(CLUSTER_NAME)-oidc-store-$(shell uuidgen | cut -c -8) \
-		--object-ownership BucketOwnerPreferred \
-		| tee $(CLUSTER_ARTIFACTS)/create-oidc-bucket.json
-
-KOPS_OIDC_BUCKET = $(shell jq --raw-output .Location $(CLUSTER_ARTIFACTS)/create-oidc-bucket.json \
-				   | cut -c 8- \
-				   | sed 's/\..*//')
-kops-configure-oidc-bucket:
-	aws s3api put-public-access-block \
-		--bucket $(KOPS_OIDC_BUCKET) \
-		--public-access-block-configuration BlockPublicAcls=false,IgnorePublicAcls=false,BlockPublicPolicy=false,RestrictPublicBuckets=false
-	aws s3api put-bucket-acl \
-		--bucket $(KOPS_OIDC_BUCKET) \
-		--acl public-read
-
-KOPS_NAME=$(CLUSTER_NAME).k8s.local
-KOPS=NAME=$(KOPS_NAME) \
-		KOPS_STATE_STORE=s3://$(KOPS_BUCKET) \
-		AWS_ACCESS_KEY_ID=$(shell jq --raw-output .AccessKey.AccessKeyId $(CLUSTER_ARTIFACTS)/secret-access-key.json) \
-		AWS_SECRET_ACCESS_KEY=$(shell jq --raw-output .AccessKey.SecretAccessKey $(CLUSTER_ARTIFACTS)/secret-access-key.json) \
-		kops
-
-ZONES=$(AWS_REGION)c
-kops-template:
-	$(KOPS) create cluster $(KOPS_NAME) \
-		--cloud aws \
-		--zones "$(ZONES)" \
-		--node-size m5.xlarge \
-		--master-zones "$(ZONES)" \
-		--master-size t3.medium \
-		--discovery-store s3://$(KOPS_OIDC_BUCKET)/$(KOPS_NAME)/discovery \
-		--dry-run \
-		-o yaml > $(CLUSTER_ARTIFACTS)/cluster.yaml
-
-kops-delete:
-	$(KOPS) delete cluster --name $(KOPS_NAME) --yes
-
-kops-init:
-	$(KOPS) create -f $(CLUSTER_ARTIFACTS)/cluster.yaml
-
-kops-replace:
-	$(KOPS) replace -f $(CLUSTER_ARTIFACTS)/cluster.yaml --force
-
-kops-update:
-	$(KOPS) update cluster --name $(KOPS_NAME) --yes --admin
-
-kops-check:
-	$(KOPS) update cluster --name $(KOPS_NAME)
-
-kops-edit:
-	$(KOPS) edit instancegroup nodes-us-west-2c
-
-kops-force-rolling-update:
-	$(KOPS) rolling-update cluster --yes --force --cloudonly
-
-kops-rolling-update:
-	$(KOPS) rolling-update cluster --yes --force
-
-kops-validate:
-	$(KOPS) validate cluster --wait 10m
-
-kops-set-key:
-	$(KOPS) create secret sshpublickey $(KOPS_NAME) -i ~/.ssh/id_ec2_rsa.pub
 
 $(CLUSTER_NAME)-resources-create: 
 	$(HELM_TEMPLATE) | kubectl create --save-config -f -

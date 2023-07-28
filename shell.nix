@@ -1,12 +1,6 @@
 { }:
 let
     pkgs = import ../../nixpkgs {};
-    mkKops = pkgs.mkKops;
-    kopsPatch = mkKops rec {
-        version = "1.27.0";
-        sha256 = "1nmfman699rh80r5pslxqicnd5zsbdsb2nk5crbwbg7zwjl9v4sw";
-        rev = "v${version}";
-    };
 in
 pkgs.mkShell {
     buildInputs = with pkgs; [
@@ -30,7 +24,7 @@ pkgs.mkShell {
         kubectx
         eksctl
         awscli2
-        kopsPatch
+        terraform
     ];
     shellHook = ''
 echo nixpgks version: ${pkgs.lib.version}
