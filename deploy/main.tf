@@ -2,6 +2,8 @@ provider "aws" {
   region = var.region
 }
 
+provider "tls" {}
+
 provider "kubernetes" {
   host                   = module.eks.cluster_endpoint
   cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
@@ -31,15 +33,24 @@ provider "helm" {
 data "aws_availability_zones" "available" {}
 
 locals {
-  cluster_name = "softgrep-${var.env}-${random_string.suffix.result}"
-  azs          = slice(data.aws_availability_zones.available.names, 0, 3)
-  vpc_cidr     = "10.0.0.0/16"
+  cluster_name    = "softgrep-${var.env}-${random_string.suffix.result}"
+  azs             = slice(data.aws_availability_zones.available.names, 0, 3)
+  vpc_cidr        = "10.0.0.0/16"
+  cluster_version = "1.27"
+  tags = {
+    GithubRepo = "softgrep"
+    GithubOrg  = "skrider"
+  }
 }
 
 resource "random_string" "suffix" {
   length  = 8
   special = false
 }
+
+################################################################################
+# VPC
+################################################################################
 
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
@@ -51,16 +62,227 @@ module "vpc" {
   azs  = local.azs
   # private subnets aren't private, there is a NAT table rule that allows all external
   # traffic.
-  private_subnets     = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 8, k)]
-  public_subnets      = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 8, k + 4)]
+  private_subnets = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 8, k)]
+  intra_subnets   = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 8, k + 3)]
+  public_subnets  = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 8, k + 6)]
 
-  enable_nat_gateway     = true
-  # TODO only turn this on in prod
-  one_nat_gateway_per_az = true
+  enable_nat_gateway = true
+  single_nat_gateway = true
 
   private_subnet_tags = {
-    "kubernetes.io/cluster/${local.cluster_name}" = "shared"
-    "kubernetes.io/role/internal-elb"                      = 1
+    "kubernetes.io/role/internal-elb" = 1
+  }
+
+  public_subnet_tags = {
+    "kubernetes.io/role/elb" = 1
+  }
+}
+
+################################################################################
+# Cluster
+################################################################################
+
+module "eks" {
+  source  = "terraform-aws-modules/eks/aws"
+  version = "19.15.4"
+
+  cluster_name                   = local.cluster_name
+  cluster_version                = local.cluster_version
+  cluster_endpoint_public_access = true
+
+  cluster_addons = {
+    coredns = {
+      most_recent = true
+    }
+    kube-proxy = {
+      most_recent = true
+    }
+    vpc-cni = {
+      most_recent = true
+    }
+  }
+
+  vpc_id                   = module.vpc.vpc_id
+  subnet_ids               = module.vpc.private_subnets
+  control_plane_subnet_ids = module.vpc.intra_subnets
+
+  # cluster_security_group_additional_rules = {
+  #   ingress_ssh = {
+  #     description                = "SSH from vpc to cluster"
+  #     protocol                   = "tcp"
+  #     from_port                  = 0
+  #     to_port                    = 22
+  #     type                       = "ingress"
+  #     cidr_blocks = [local.vpc_cidr]
+  #   }
+  # }
+
+  eks_managed_node_groups = {
+    # Default node group - as provided by AWS EKS
+    worker = {
+      # By default, the module creates a launch template to ensure tags are propagated to instances, etc.,
+      # so we need to disable it to use the default template provided by the AWS EKS managed node group service
+      use_custom_launch_template = false
+
+      min_size     = 1
+      max_size     = 5
+      desired_size = 1
+
+      ami_type = "AL2_x86_64"
+      platform = "linux"
+
+      disk_size = 64
+
+      instance_types = ["m5.xlarge"]
+
+      # Remote access cannot be specified with a launch template
+      remote_access = {
+        ec2_ssh_key               = aws_key_pair.cluster.key_name
+        source_security_group_ids = [aws_security_group.bastion.id]
+      }
+    }
+
+    gpu_worker = {
+      # By default, the module creates a launch template to ensure tags are propagated to instances, etc.,
+      # so we need to disable it to use the default template provided by the AWS EKS managed node group service
+      use_custom_launch_template = false
+
+      min_size     = 1
+      max_size     = 2
+      desired_size = 1
+
+      ami_type = "AL2_x86_64_GPU"
+      platform = "linux"
+
+      disk_size = 256
+
+      instance_types = ["g5.xlarge"]
+
+      # Remote access cannot be specified with a launch template
+      remote_access = {
+        ec2_ssh_key               = aws_key_pair.cluster.key_name
+        source_security_group_ids = [aws_security_group.bastion.id]
+      }
+    }
+  }
+}
+
+resource "tls_private_key" "cluster" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
+resource "aws_key_pair" "cluster" {
+  key_name   = "${local.cluster_name}-key-pair"
+  public_key = tls_private_key.cluster.public_key_openssh
+}
+
+resource "aws_security_group" "cluster_ssh" {
+  name_prefix = "${local.cluster_name}-remote-access"
+  description = "Allow remote SSH access"
+  vpc_id      = module.vpc.vpc_id
+
+  ingress {
+    description = "SSH access"
+    from_port   = 0
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [local.vpc_cidr]
+  }
+
+  egress {
+    from_port        = 0
+    to_port          = 0
+    protocol         = "-1"
+    cidr_blocks      = ["0.0.0.0/0"]
+    ipv6_cidr_blocks = ["::/0"]
+  }
+
+  tags = merge(local.tags, { Name = "${local.cluster_name}-remote" })
+}
+
+################################################################################
+# Bastion
+################################################################################
+
+resource "aws_eip" "bastion" { }
+
+resource "aws_eip_association" "bastion" {
+  instance_id   = aws_instance.bastion.id
+  allocation_id = aws_eip.bastion.id
+}
+
+resource "tls_private_key" "bastion" {
+  algorithm = "RSA"
+  rsa_bits  = 4096
+}
+
+resource "aws_key_pair" "bastion" {
+  key_name   = "${local.cluster_name}-dev-key-pair"
+  public_key = tls_private_key.bastion.public_key_openssh
+}
+
+resource "aws_security_group" "bastion" {
+  name        = "bastion"
+  description = "bastion security group"
+  vpc_id = module.vpc.vpc_id
+
+  ingress {
+    description = "SSH from laptop"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"] # replace this with your IP/CIDR
+  }
+
+  egress {
+    description = "SSH to cluster"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [local.vpc_cidr] # replace this with your IP/CIDR
+  }
+
+  tags = {
+    Name = "dev-ssh"
+  }
+}
+
+data "aws_ami" "latest_amazon_linux" {
+  most_recent = true
+
+  filter {
+    name   = "name"
+    values = ["amzn2-ami-hvm-*"]
+  }
+
+  filter {
+    name   = "owner-alias"
+    values = ["amazon"]
+  }
+
+  filter {
+    name   = "state"
+    values = ["available"]
+  }
+
+  filter {
+    name   = "root-device-type"
+    values = ["ebs"]
+  }
+
+  owners = ["amazon"]
+}
+
+resource "aws_instance" "bastion" {
+  instance_type               = "t3.micro"
+  key_name                    = aws_key_pair.bastion.key_name
+  vpc_security_group_ids      = [aws_security_group.bastion.id]
+  subnet_id                   = module.vpc.public_subnets[0]
+  ami = data.aws_ami.latest_amazon_linux.id
+
+  tags = {
+    Name = "${local.cluster_name}-dev"
   }
 }
 
