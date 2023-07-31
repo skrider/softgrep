@@ -20,12 +20,12 @@ output "bastion_public_ip" {
 
 output "bastion_private_key" {
   description = "bastion private key"
-  value = tls_private_key.bastion.private_key_pem
-  sensitive = true
+  value       = tls_private_key.bastion.private_key_pem
+  sensitive   = true
 }
 
 output "cluster_private_key" {
   description = "cluster private key"
-  value = tls_private_key.cluster.private_key_pem
-  sensitive = true
+  value       = tls_private_key.cluster.private_key_pem
+  sensitive   = true
 }

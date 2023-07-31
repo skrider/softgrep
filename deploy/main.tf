@@ -205,7 +205,7 @@ resource "aws_security_group" "cluster_ssh" {
 # Bastion
 ################################################################################
 
-resource "aws_eip" "bastion" { }
+resource "aws_eip" "bastion" {}
 
 resource "aws_eip_association" "bastion" {
   instance_id   = aws_instance.bastion.id
@@ -225,7 +225,7 @@ resource "aws_key_pair" "bastion" {
 resource "aws_security_group" "bastion" {
   name        = "bastion"
   description = "bastion security group"
-  vpc_id = module.vpc.vpc_id
+  vpc_id      = module.vpc.vpc_id
 
   ingress {
     description = "SSH from laptop"
@@ -275,14 +275,95 @@ data "aws_ami" "latest_amazon_linux" {
 }
 
 resource "aws_instance" "bastion" {
-  instance_type               = "t3.micro"
-  key_name                    = aws_key_pair.bastion.key_name
-  vpc_security_group_ids      = [aws_security_group.bastion.id]
-  subnet_id                   = module.vpc.public_subnets[0]
-  ami = data.aws_ami.latest_amazon_linux.id
+  instance_type          = "t3.micro"
+  key_name               = aws_key_pair.bastion.key_name
+  vpc_security_group_ids = [aws_security_group.bastion.id]
+  subnet_id              = module.vpc.public_subnets[0]
+  ami                    = data.aws_ami.latest_amazon_linux.id
 
   tags = {
     Name = "${local.cluster_name}-dev"
   }
+}
+
+################################################################################
+# Helm
+################################################################################
+
+resource "kubernetes_namespace" "gpu_operator" {
+  metadata {
+    name = "gpu-operator"
+  }
+}
+
+resource "helm_release" "gpu_operator" {
+  name       = "gpu-operator"
+  atomic     = true
+  chart      = "gpu-operator"
+  version    = "23.3.2"
+  repository = "https://helm.ngc.nvidia.com/nvidia"
+  namespace  = kubernetes_namespace.gpu_operator.metadata[0].name
+  wait = true
+
+  values = [
+    <<EOF
+    cdi:
+        enabled: true
+        default: true
+    driver:
+        enabled: false
+    toolkit:
+        enabled: true
+    EOF
+  ]
+}
+
+resource "null_resource" "wait_for_gpu" {
+  provisioner "local-exec" {
+    command = <<EOF
+/bin/env sh -c "$(cat << EOS
+kubectl config use-context ${module.eks.cluster_arn}
+until [[ $(kubectl get nodes -l nvidia.com/gpu.present=true | wc -l) > 0 ]]; do 
+    echo 'Waiting for node label...' 
+    sleep 5
+done
+EOS
+)"
+EOF
+  }
+
+  depends_on = [helm_release.gpu_operator]
+}
+
+resource "kubernetes_namespace" "ray" {
+  metadata {
+    name = "ray"
+  }
+}
+
+resource "helm_release" "ray_operator" {
+  name       = "ray-operator"
+  atomic     = true
+  chart      = "kuberay-operator"
+  namespace  = kubernetes_namespace.ray.metadata[0].name
+  repository = "https://ray-project.github.io/kuberay-helm"
+  version    = "0.6.0-rc.1"
+
+  depends_on = [null_resource.wait_for_gpu]
+}
+
+resource "helm_release" "ray_cluster" {
+  name       = "ray-cluster"
+  atomic     = true
+  namespace  = kubernetes_namespace.ray.metadata[0].name
+  chart      = "ray-cluster"
+  repository = "https://ray-project.github.io/kuberay-helm"
+  version    = "0.6.0-rc.1"
+
+  values = [
+    file("${path.module}/values/ray-cluster.yaml")
+  ]
+
+  depends_on = [helm_release.ray_operator, null_resource.wait_for_gpu]
 }
 
