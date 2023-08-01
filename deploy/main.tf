@@ -140,7 +140,7 @@ module "eks" {
 
       min_size     = 3
       max_size     = 10
-      desired_size = 1
+      desired_size = 3
 
       ami_type = "AL2_x86_64"
       platform = "linux"
