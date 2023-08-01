@@ -54,64 +54,38 @@ server:
 	docker buildx build . -t $(LOCAL_TAG)
 
 # DEPLOY
-DEPLOY_ARTIFACTS = ./deploy/artifacts/$(DEPLOY_ENV)
 DEPLOY_ENV = $(if $(SOFTGREP_ENV),$(SOFTGREP_ENV),development)
 AWS_REGION = us-west-2
-AWS_ACCOUNT = $(shell aws sts get-caller-identity --query Account --output text)
-CLUSTER_NAME = softgrep-$(DEPLOY_ENV)
+
+HELM_VALUES = ./deploy/chart/values.$(DEPLOY_ENV).yaml
+HELM_ENV = IMAGE_REPOSITORY=$(TF_OUT_)
+HELM_TEMPLATE = cat $(HELM_VALUES) \
+        | $(shell $(TERRAFORM) output | sed -e 's/^/TF_OUT_/' -e 's/\s=\s/=/' -e '/<sensitive>$$/d') envsubst \
+        | helm template softgrep deploy/chart --skip-crds --values -
+apply:
+	$(HELM_TEMPLATE) | kubectl apply -f -
 
 # SERVER
 LOCAL_TAG = softgrep/server
 SERVER_ARTIFACTS = $(DEPLOY_ARTIFACTS)/server
 ECR_JSON = $(SERVER_ARTIFACTS)/ecr-create-repository.json
-SERVER_ECR_REPO = $(shell cat $(ECR_JSON) | jq --raw-output .repository.repositoryUri)
-ecr-create:
-	mkdir -p $(SERVER_ARTIFACTS)
-	aws ecr create-repository \
-		--repository-name softgrep/server \
-		--no-cli-pager | tee $(ECR_JSON)
-
+TERRAFORM = terraform -chdir=deploy
+SERVER_ECR_REPO=$(shell $(TERRAFORM) output -raw server_ecr_url)
 ecr-login:
 	aws ecr get-login-password --region $(AWS_REGION) \
 		| docker login \
 			--username AWS \
-			--password-stdin $(shell cat $(ECR_JSON) | jq .repository.repositoryUri)
+			--password-stdin $(SERVER_ECR_REPO)
 
 ecr-publish:
-	docker tag $(LOCAL_TAG):latest $(shell cat $(ECR_JSON) | jq --raw-output .repository.repositoryUri):latest
+	docker tag $(LOCAL_TAG):latest $(SERVER_ECR_REPO):latest
 	docker push $(SERVER_ECR_REPO):latest
 
-# CLUSTER
-CLUSTER_ARTIFACTS=$(DEPLOY_ARTIFACTS)/cluster
-EKS_CONFIG_FILE = deploy/cluster.$(DEPLOY_ENV).yaml
-EKS_CONFIG = cat $(EKS_CONFIG_FILE) \
-		| CLUSTER_NAME=$(CLUSTER_NAME) AWS_REGION=$(AWS_REGION) envsubst
-HELM_VALUES = ./deploy/chart/values.$(DEPLOY_ENV).yaml
-HELM_ENV = IMAGE_REPOSITORY=$(SERVER_ECR_REPO)
-HELM_TEMPLATE = cat $(HELM_VALUES) \
-	| $(HELM_ENV) envsubst \
-	| helm template softgrep deploy/chart --skip-crds --values -
-
-template:
-	$(HELM_TEMPLATE) --debug
-
-vpc:
-	aws ec2 create-vpc \
-	  --cidr-block "10.0.0.0/16" \
-	  --profile default \
-	  --region $(AWS_REGION) \
-	  | tee $(DEPLOY_ARTIFACTS)/create-vpc.json
-
-VPC=$(shell jq .Vpc.VpcId $(DEPLOY_ARTIFACTS)/create-vpc.json)
-
-vpc-delete:
-	aws ec2 delete-vpc --vpc-id $(VPC)
-
-TERRAFORM = TF_VAR_region=$(AWS_REGION) \
-	TF_VAR_env=$(SOFTGREP_ENV) \
-	terraform -chdir=deploy
 ter-apply:
 	$(TERRAFORM) apply
+
+ter-apply-prebuild:
+	$(TERRAFORM) apply -target=aws_ecr_repository.server
 
 ter-destroy:
 	$(TERRAFORM) destroy
@@ -122,45 +96,16 @@ ter-console:
 ter-apply-kubeconfig:
 	aws eks --region $(AWS_REGION) update-kubeconfig \
 		--name $(shell $(TERRAFORM) output -raw cluster_name)
+
+
+	
+
 ssh-add:
 	$(TERRAFORM) output -raw bastion_private_key | ssh-add -
 	$(TERRAFORM) output -raw cluster_private_key | ssh-add -
 
 bastion-ip:
 	@$(TERRAFORM) output -raw bastion_public_ip
-
-$(CLUSTER_NAME)-resources-create: 
-	$(HELM_TEMPLATE) | kubectl create --save-config -f -
-
-$(CLUSTER_NAME)-resources-delete:
-	$(HELM_TEMPLATE) | kubectl delete -f -
-
-$(CLUSTER_NAME)-resources-apply:
-	$(HELM_TEMPLATE) | kubectl apply -f -
-
-.PHONY: $(CLUSTER_NAME)-*
-
-CRDS = customresourcedefinition/rayclusters.ray.io \
-customresourcedefinition/rayjobs.ray.io \
-customresourcedefinition/rayservices.ray.io \
-customresourcedefinition/clusterpolicies.nvidia.com \
-customresourcedefinition/nodefeatures.nfd.k8s-sigs.io \
-customresourcedefinition/nodefeaturerules.nfd.k8s-sigs.io
-$(CLUSTER_NAME)-crds:
-	$(foreach crd,$(CRDS),\
-		kubectl describe $(crd) 2> /dev/null ;\
-		if [[ $$? == '0' ]]; then \
-			echo deleting ;\
-			kubectl delete $(crd) ;\
-		fi; \
-	)
-	cat $(HELM_VALUES) \
-		| $(HELM_ENV) envsubst \
-		| helm template softgrep deploy/chart --values - --include-crds \
-		| yq 'select(.kind == "CustomResourceDefinition")' \
-		| kubectl create -f -
-
-.PHONY: $(CLUSTER_NAME)-*
 
 # TEST
 SERVER_URL = $(shell kubectl get service/softgrep --output json \

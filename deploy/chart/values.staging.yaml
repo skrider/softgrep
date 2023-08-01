@@ -1,13 +1,16 @@
 replicaCount: 1
 
 image:                                                                 
-  repository: ${IMAGE_REPOSITORY}
+  repository: ${TF_OUT_server_ecr_url}
   # set pullPolicy to always for tight test cycles bypassing CI
   pullPolicy: Always
   tag: "latest"                                                              
 
 service:
   port: 50051
+
+ray:
+  serviceName: ${TF_OUT_ray_service}
 
 rpdbPort: 4444
 
@@ -18,125 +21,4 @@ resources:
   requests:
     cpu: 100m
     memory: 512Mi
-
-cluster-autoscaler:
-  enabled: true
-  autoDiscovery:
-    clusterName: ${CLUSTER_NAME}
-
-ray-cluster:
-  worker:
-    disabled: false
-    groupName: workergroup
-    nodeSelector:
-      softgrep/gpu: "false"
-    replicas: 2
-    labels: {}
-    serviceAccountName: ""
-    rayStartParams: {}
-    # containerEnv specifies environment variables for the Ray container,
-    # Follows standard K8s container env schema.
-    containerEnv: []
-    # - name: EXAMPLE_ENV
-    #   value: "1"
-    envFrom: []
-      # - secretRef:
-      #     name: my-env-secret
-    # ports optionally allows specifying ports for the Ray container.
-    ports: []
-    # resource requests and limits for the Ray head container.
-    # Modify as needed for your application.
-    # Note that the resources in this example are much too small for production;
-    # we don't recommend allocating less than 8G memory for a Ray pod in production.
-    # Ray pods should be sized to take up entire K8s nodes when possible.
-    # Always set CPU and memory limits for Ray pods.
-    # It is usually best to set requests equal to limits.
-    # See https://docs.ray.io/en/latest/cluster/kubernetes/user-guides/config.html#resources
-    # for further guidance.
-    annotations: {}
-    tolerations: []
-    affinity: {}
-    # Ray container security context.
-    securityContext: {}
-    volumes:
-      - name: log-volume
-        emptyDir: {}
-    # Ray writes logs to /tmp/ray/session_latests/logs
-    volumeMounts:
-      - mountPath: /tmp/ray
-        name: log-volume
-    # sidecarContainers specifies additional containers to attach to the Ray pod.
-    # Follows standard K8s container spec.
-    sidecarContainers: []
-    # See docs/guidance/pod-command.md for more details about how to specify
-    # container command for worker Pod.
-    command: []
-    args: []
-
-  additionalWorkerGroups:
-    gpu-worker:
-      disabled: false
-      replicas: 1
-      minReplicas: 1
-      maxReplicas: 4
-      labels: {}
-      tolerations:
-      - effect: NoSchedule
-        key: ray.io/node-type
-        operator: Exists
-      - effect: NoSchedule
-        key: nvidia.com/gpu
-        operator: Exists
-      resources:
-        limits:
-          cpu: 4
-          memory: "16G"
-          nvidia.com/gpu: 1
-        requests:
-          cpu: 3
-          memory: "10G"
-          nvidia.com/gpu: 1
-      serviceAccountName: ""
-      rayStartParams:
-        block: "true"
-      # containerEnv specifies environment variables for the Ray container,
-      # Follows standard K8s container env schema.
-      containerEnv: []
-      # - name: EXAMPLE_ENV
-      #   value: "1"
-      envFrom: []
-      # - secretRef:
-      #     name: my-env-secret
-      # ports optionally allows specifying ports for the Ray container.
-      # ports: []
-      # resource requests and limits for the Ray head container.
-      # Modify as needed for your application.
-      # Note that the resources in this example are much too small for production;
-      # we don't recommend allocating less than 8G memory for a Ray pod in production.
-      # Ray pods should be sized to take up entire K8s nodes when possible.
-      # Always set CPU and memory limits for Ray pods.
-      # It is usually best to set requests equal to limits.
-      # See https://docs.ray.io/en/latest/cluster/kubernetes/user-guides/config.html#resources
-      # for further guidance.
-      annotations: {}
-      nodeSelector: {}
-      affinity: {}
-      # Ray container security context.
-      securityContext: {}
-      volumes:
-        - name: log-volume
-          emptyDir: {}
-      # Ray writes logs to /tmp/ray/session_latests/logs
-      volumeMounts:
-        - mountPath: /tmp/ray
-          name: log-volume
-      sidecarContainers: []
-      # See docs/guidance/pod-command.md for more details about how to specify
-      # container command for worker Pod.
-      command: []
-      args: []
-
-gpu-operator:
-  cdi.enabled: true
-  cdi.default: true
 

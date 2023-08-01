@@ -23,6 +23,8 @@ logging.basicConfig(level=logging.INFO)
 # address is populated by kubernetes via RAY_ADDRESS
 logging.info("initializing ray")
 
+rpdb.set_trace()
+
 runtime_env = RuntimeEnv(
     conda="""
 name: env-name

@@ -33,7 +33,8 @@ provider "helm" {
 data "aws_availability_zones" "available" {}
 
 locals {
-  cluster_name    = "softgrep-${var.env}-${random_string.suffix.result}"
+  name            = "softgrep"
+  cluster_name    = "${local.name}-${var.env}-${random_string.suffix.result}"
   azs             = slice(data.aws_availability_zones.available.names, 0, 3)
   vpc_cidr        = "10.0.0.0/16"
   cluster_version = "1.27"
@@ -56,7 +57,7 @@ module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "5.0.0"
 
-  name = "softgrep-${var.env}-vpc"
+  name = "${local.name}-${var.env}-vpc"
 
   cidr = local.vpc_cidr
   azs  = local.azs
@@ -75,6 +76,19 @@ module "vpc" {
 
   public_subnet_tags = {
     "kubernetes.io/role/elb" = 1
+  }
+}
+
+################################################################################
+# ECR
+################################################################################
+
+resource "aws_ecr_repository" "server" {
+  name                 = "softgrep-${lower(random_string.suffix.result)}/server"
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = false
   }
 }
 
@@ -124,8 +138,8 @@ module "eks" {
       # so we need to disable it to use the default template provided by the AWS EKS managed node group service
       use_custom_launch_template = false
 
-      min_size     = 1
-      max_size     = 5
+      min_size     = 3
+      max_size     = 10
       desired_size = 1
 
       ami_type = "AL2_x86_64"
@@ -303,7 +317,7 @@ resource "helm_release" "gpu_operator" {
   version    = "23.3.2"
   repository = "https://helm.ngc.nvidia.com/nvidia"
   namespace  = kubernetes_namespace.gpu_operator.metadata[0].name
-  wait = true
+  wait       = true
 
   values = [
     <<EOF

@@ -29,7 +29,7 @@ spec:
           - "--port={{ .Values.service.port }}"
           env:
           - name: RAY_ADDRESS
-            value: "ray://{{ include "deploy.fullname" . }}-kuberay-head-svc.default.svc.cluster.local:10001"
+            value: ray://{{ .Values.ray.serviceName }}:10001
           ports:
             - name: grpc
               containerPort: {{ .Values.service.port }}
@@ -43,12 +43,12 @@ spec:
               - sh
               - -c
               - "ps -e | grep python | grep -v grep"
-            initialDelaySeconds: 8
+            initialDelaySeconds: 5
             periodSeconds: 10
           readinessProbe:
             grpc:
               port: {{ .Values.service.port }}
-            initialDelaySeconds: 8
+            initialDelaySeconds: 5
             periodSeconds: 2
           resources:
             {{- toYaml .Values.resources | nindent 12 }}

@@ -29,3 +29,14 @@ output "cluster_private_key" {
   value       = tls_private_key.cluster.private_key_pem
   sensitive   = true
 }
+
+output "server_ecr_url" {
+  description = "Server Registry Name"
+  value       = aws_ecr_repository.server.repository_url
+}
+
+output "ray_service" {
+  description = ""
+  value = "${helm_release.ray_cluster.name}-kuberay-head-svc.${kubernetes_namespace.ray.metadata[0].name}.svc.cluster.local"
+}
+
