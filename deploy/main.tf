@@ -132,10 +132,7 @@ module "eks" {
   # }
 
   eks_managed_node_groups = {
-    # Default node group - as provided by AWS EKS
     worker = {
-      # By default, the module creates a launch template to ensure tags are propagated to instances, etc.,
-      # so we need to disable it to use the default template provided by the AWS EKS managed node group service
       use_custom_launch_template = false
 
       min_size     = 3
@@ -149,7 +146,6 @@ module "eks" {
 
       instance_types = ["m5.xlarge"]
 
-      # Remote access cannot be specified with a launch template
       remote_access = {
         ec2_ssh_key               = aws_key_pair.cluster.key_name
         source_security_group_ids = [aws_security_group.bastion.id]
@@ -157,8 +153,6 @@ module "eks" {
     }
 
     gpu_worker = {
-      # By default, the module creates a launch template to ensure tags are propagated to instances, etc.,
-      # so we need to disable it to use the default template provided by the AWS EKS managed node group service
       use_custom_launch_template = false
 
       min_size     = 1

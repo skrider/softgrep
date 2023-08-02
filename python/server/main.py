@@ -23,8 +23,6 @@ logging.basicConfig(level=logging.INFO)
 # address is populated by kubernetes via RAY_ADDRESS
 logging.info("initializing ray")
 
-rpdb.set_trace()
-
 runtime_env = RuntimeEnv(
     conda={
         "channels": ["nvidia", "pytorch", "conda-forge", "defaults"],
@@ -68,7 +66,6 @@ class ModelServicer(softgrep_pb2_grpc.Model):
     ) -> softgrep_pb2.Embedding:
         handle = foo.remote()
         vec = ray.get(handle)
-        rpdb.set_trace()
         return softgrep_pb2.Embedding(vec=vec)
 
 

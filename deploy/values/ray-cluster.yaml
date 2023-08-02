@@ -1,8 +1,11 @@
+image:
+  repository: rayproject/ray-ml
+  tag: 2.5.0-gpu
+  pullPolicy: IfNotPresent
+
 worker:
   disabled: false
   groupName: workergroup
-  nodeSelector:
-    softgrep/gpu: "false"
   replicas: 2
   labels: {}
   serviceAccountName: ""

@@ -97,9 +97,6 @@ ter-apply-kubeconfig:
 	aws eks --region $(AWS_REGION) update-kubeconfig \
 		--name $(shell $(TERRAFORM) output -raw cluster_name)
 
-
-	
-
 ssh-add:
 	$(TERRAFORM) output -raw bastion_private_key | ssh-add -
 	$(TERRAFORM) output -raw cluster_private_key | ssh-add -
