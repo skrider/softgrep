@@ -6,3 +6,8 @@ build
 pb
 .direnv
 .env
+deploy/artifacts/cluster/secret-access-key.json
+deploy/.terraform
+deploy/terraform.tfstate
+deploy/.terraform.lock.hcl
+deploy/terraform.tfstate.backup

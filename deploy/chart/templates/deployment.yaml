@@ -29,20 +29,26 @@ spec:
           - "--port={{ .Values.service.port }}"
           env:
           - name: RAY_ADDRESS
-            value: "ray://{{ include "deploy.fullname" . }}-kuberay-head-svc.default.svc.cluster.local:10001"
+            value: ray://{{ .Values.ray.serviceName }}:10001
           ports:
             - name: grpc
               containerPort: {{ .Values.service.port }}
               protocol: TCP
+            - name: rpdb
+              containerPort: {{ .Values.rpdbPort }}
+              protocol: TCP
           livenessProbe:
-            grpc:
-              port: {{ .Values.service.port }}
-            initialDelaySeconds: 4
-            periodSeconds: 2
+            exec:
+              command: 
+              - sh
+              - -c
+              - "ps -e | grep python | grep -v grep"
+            initialDelaySeconds: 5
+            periodSeconds: 10
           readinessProbe:
             grpc:
               port: {{ .Values.service.port }}
-            initialDelaySeconds: 4
+            initialDelaySeconds: 5
             periodSeconds: 2
           resources:
             {{- toYaml .Values.resources | nindent 12 }}

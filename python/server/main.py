@@ -14,13 +14,34 @@ from pb import softgrep_pb2
 from pb import softgrep_pb2_grpc
 
 import ray
+from ray.runtime_env import RuntimeEnv
+
+import rpdb
 
 logging.basicConfig(level=logging.INFO)
 
 # address is populated by kubernetes via RAY_ADDRESS
 logging.info("initializing ray")
-ray.init()
+
+runtime_env = RuntimeEnv(
+    conda={
+        "channels": ["nvidia", "pytorch", "conda-forge", "defaults"],
+        "dependencies": [
+            "python=3.7",
+            "codecov",
+            "pytorch",
+            "torchvision",
+            "torchaudio",
+            "pytorch-cuda=11.8",
+            "numpy",
+        ],
+    }
+)
+
+ray.init(runtime_env=runtime_env)
+
 logging.info(f"ray initialized with {ray.cluster_resources()}")
+
 
 def parse_arguments():
     logging.info("Parsing arguments")
@@ -32,14 +53,20 @@ def parse_arguments():
     return args.host, args.port
 
 
+@ray.remote(num_gpus=1)
+def foo():
+    return __import__("torch").cuda.is_available()
+
+
 class ModelServicer(softgrep_pb2_grpc.Model):
     async def Predict(
         self,
         request: softgrep_pb2.Chunk,
         context: grpc.aio.ServicerContext,
     ) -> softgrep_pb2.Embedding:
-        print(request.content)
-        return softgrep_pb2.Embedding(vec=np.random.randn(100))
+        handle = foo.remote()
+        vec = ray.get(handle)
+        return softgrep_pb2.Embedding(vec=vec)
 
 
 class LoggingInterceptor(grpc.aio.ServerInterceptor):
@@ -48,10 +75,9 @@ class LoggingInterceptor(grpc.aio.ServerInterceptor):
         logging.info(f"{time.asctime(time.localtime())} Received request: {method}")
         return await continuation(handler_call_details)
 
+
 async def serve() -> None:
-    server = grpc.aio.server(
-            interceptors=(LoggingInterceptor(),)
-    )
+    server = grpc.aio.server(interceptors=(LoggingInterceptor(),))
 
     health_servicer = health.HealthServicer()
     health_pb2_grpc.add_HealthServicer_to_server(health_servicer, server)
@@ -69,9 +95,9 @@ async def serve() -> None:
     logging.info("Waiting for termination")
     await server.wait_for_termination()
 
+
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     logging.basicConfig(level=logging.INFO)
     loop.add_signal_handler(signal.SIGINT, exit)
     loop.run_until_complete(serve())
-

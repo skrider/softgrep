@@ -1,13 +1,18 @@
 replicaCount: 1
 
 image:                                                                 
-  repository: ${IMAGE_REPOSITORY}
+  repository: ${TF_OUT_server_ecr_url}
   # set pullPolicy to always for tight test cycles bypassing CI
   pullPolicy: Always
   tag: "latest"                                                              
 
 service:
   port: 50051
+
+ray:
+  serviceName: ${TF_OUT_ray_service}
+
+rpdbPort: 4444
 
 resources:
   limits:
@@ -16,11 +21,4 @@ resources:
   requests:
     cpu: 100m
     memory: 512Mi
-
-cluster-autoscaler:
-  enabled: true
-  autoDiscovery:
-    clusterName: ${CLUSTER_NAME}
-
-
 
