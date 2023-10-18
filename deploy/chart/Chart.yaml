@@ -1,7 +1,0 @@
-apiVersion: v2
-name: softgrep
-description: Helm deploy chart for softgrep
-type: application
-version: "0.0.0"
-appVersion: "0.0.0"
-
