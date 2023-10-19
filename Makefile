@@ -1,17 +1,10 @@
-PYTHON_ENV = PYTHONPATH="$(CWD):${PYTHONPATH}" \
-	LD_LIBRARY_PATH="${NIX_LD_LIB}"
-PYTHON_EXE = venv/bin/python
-PYTHON = $(PYTHON_ENV) $(PYTHON_EXE)
-
 # BUILD
 OUT = $(shell pwd)/build
 
-pb: pb/softgrep.proto
-	$(PYTHON) -m grpc_tools.protoc \
-		-Ipb --python_out=pb --pyi_out=pb --grpc_python_out=pb pb/softgrep.proto
+pb: 
 	protoc --go_out=. --go_opt=paths=source_relative \
 		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
-		pb/softgrep.proto
+		pb/triton.proto
 .PHONY: pb
 
 # CLI
