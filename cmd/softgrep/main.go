@@ -119,8 +119,7 @@ func main() {
 					continue
 				}
 
-				token, err := chunker.Next()
-				for ; err == nil; token, err = chunker.Next() {
+				for token, err := chunker.Next(); err == nil; token, err = chunker.Next() {
 					chunkCh <- token
 				}
 				if err != io.EOF {
@@ -135,7 +134,7 @@ func main() {
 		}(i)
 	}
 
-    tokenCh := make(chan *tokenize.TokenizedChunk)
+    tokenCh := make(chan *tokenize.TokenizedChunk, 512)
     for i := 0; i < NUM_WORKERS; i++ {
         wg.Add(1)
         go func(i int) {
@@ -187,4 +186,5 @@ func main() {
 		}
 	}
 
+    wg.Wait()
 }

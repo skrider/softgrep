@@ -40,21 +40,7 @@ type StridedChunker struct {
 }
 
 func (t *StridedChunker) Next() (string, error) {
-	if t.prevEnd == len(t.b) {
-		return "", io.EOF
-	}
-
-	start := t.prevEnd - t.overlap
-	if start < 0 {
-		start = 0
-	}
-	end := start + t.stride
-	if end > len(t.b) {
-		end = len(t.b)
-	}
-	t.prevEnd = end
-
-	return string(t.b[start:end]), nil
+	return string(t.b), io.EOF
 }
 
 var BinaryFileError error

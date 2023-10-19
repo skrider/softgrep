@@ -8,7 +8,7 @@ import (
 	"github.com/daulet/tokenizers"
 )
 
-//go:embed microsoft/codebert-base/vocab.json
+//go:embed tokenizer.json
 var vocab []byte
 
 var tokenizer *tokenizers.Tokenizer
@@ -35,8 +35,8 @@ const MAX_LEN = 512
 // used as as the "sentence vector". Note that this only makes sense because
 // the entire model is fine-tuned.
 
-const CLS_TOKEN = "[CLS]"
-const SEP_TOKEN = "[SEP]"
+const CLS_TOKEN = "<s>"
+const SEP_TOKEN = "</s>"
 
 var CLS_TOKEN_ID uint32
 var SEP_TOKEN_ID uint32
