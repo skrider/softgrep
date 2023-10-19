@@ -1,5 +1,6 @@
 # BUILD
 OUT = $(shell pwd)/build
+TARGETPLATFORM = linux-x86_64
 
 pb: 
 	protoc --go_out=. --go_opt=paths=source_relative \
@@ -12,6 +13,10 @@ BENCH_LOG = $(OUT)/benchmark.log
 BENCH_CMD = $(OUT)/softgrep ./testdata/grpc
 languages: tool/generate_ts_import
 	go run tool/generate_ts_import/main.go > pkg/chunk/languages.go
+
+build/libtokenizers.a:
+	curl -fsSL https://github.com/daulet/tokenizers/releases/latest/download/libtokenizers.$(TARGETPLATFORM).tar.gz | tar xvz -C build
+.PHONY: build/libtokenizers.a
 
 build-debug:
 	go build -o $(OUT)/softgrep-debug -gcflags='all=-N -l' cmd/softgrep/main.go
@@ -26,8 +31,8 @@ format:
 	fd -e go -x go fmt
 	fd -e py | $(PYTHON_ENV) xargs $(PYTHON_EXE) -m black
 
-build:
-	go build -o $(OUT)/softgrep cmd/softgrep/main.go 
+build: build/libtokenizers.a
+	LD_LIBRARY_PATH="$(OUT)" CGO_ENABLED=1 CGO_LDFLAGS="-Wl,--copy-dt-needed-entries" go build -o $(OUT)/softgrep cmd/softgrep/main.go 
 .PHONY: build
 
 # message is passed in via env
