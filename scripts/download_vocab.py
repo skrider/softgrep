@@ -11,6 +11,7 @@ def main(args):
 
     # download vocab
     fs = HfFileSystem()
+    # TODO download tokenizer config with the proper schema; this is just the raw vocab
     vocab = fs.glob(f"{args.model}/**vocab.json")
     for v in vocab:
         print(f"Downloading {v}")
