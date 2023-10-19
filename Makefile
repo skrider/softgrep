@@ -1,24 +1,23 @@
-PYTHON_ENV = PYTHONPATH="$(CWD):${PYTHONPATH}" \
-	LD_LIBRARY_PATH="${NIX_LD_LIB}"
-PYTHON_EXE = venv/bin/python
-PYTHON = $(PYTHON_ENV) $(PYTHON_EXE)
-
 # BUILD
 OUT = $(shell pwd)/build
+TARGETPLATFORM = linux-x86_64
+MODEL = microsoft/codebert-base
 
-pb: pb/softgrep.proto
-	$(PYTHON) -m grpc_tools.protoc \
-		-Ipb --python_out=pb --pyi_out=pb --grpc_python_out=pb pb/softgrep.proto
+pb: 
 	protoc --go_out=. --go_opt=paths=source_relative \
 		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
-		pb/softgrep.proto
+		pb/triton.proto
 .PHONY: pb
 
 # CLI
 BENCH_LOG = $(OUT)/benchmark.log
 BENCH_CMD = $(OUT)/softgrep ./testdata/grpc
 languages: tool/generate_ts_import
-	go run tool/generate_ts_import/main.go > pkg/tokenize/languages.go
+	go run tool/generate_ts_import/main.go > pkg/chunk/languages.go
+
+build/libtokenizers.a:
+	curl -fsSL https://github.com/daulet/tokenizers/releases/latest/download/libtokenizers.$(TARGETPLATFORM).tar.gz | tar xvz -C build
+.PHONY: build/libtokenizers.a
 
 build-debug:
 	go build -o $(OUT)/softgrep-debug -gcflags='all=-N -l' cmd/softgrep/main.go
@@ -33,8 +32,12 @@ format:
 	fd -e go -x go fmt
 	fd -e py | $(PYTHON_ENV) xargs $(PYTHON_EXE) -m black
 
+vocab:
+	./scripts/download_vocab.py --model $(MODEL) --output ./pkg/tokenize
+.PHONY: vocab
+
 build:
-	go build -o $(OUT)/softgrep cmd/softgrep/main.go 
+	CGO_ENABLED=1 CGO_LDFLAGS="-Wl,--copy-dt-needed-entries,-L$(OUT)" go build -o $(OUT)/softgrep cmd/softgrep/main.go 
 .PHONY: build
 
 # message is passed in via env

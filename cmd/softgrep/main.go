@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"io"
 	"log"
@@ -9,9 +8,8 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/skrider/softgrep/pb"
+	"github.com/skrider/softgrep/pkg/chunk"
 	"github.com/skrider/softgrep/pkg/config"
-	"github.com/skrider/softgrep/pkg/embed"
 	"github.com/skrider/softgrep/pkg/tokenize"
 	"github.com/skrider/softgrep/pkg/walker"
 )
@@ -99,7 +97,7 @@ func main() {
 	parseCh := make(chan ChunkSource, NUM_WORKERS)
 	var wg sync.WaitGroup
 
-	tokenCh := make(chan string)
+	chunkCh := make(chan string)
 	for i := 0; i < NUM_WORKERS; i++ {
 		wg.Add(1)
 		go func(i int) {
@@ -111,15 +109,18 @@ func main() {
 				}
 			}()
 			for entry = range parseCh {
-				tokenizer, err := tokenize.NewTokenizer(entry.Name, entry.Reader, &config)
+				chunker, err := chunk.NewChunker(entry.Name, entry.Reader, &config)
 				if err != nil {
-					log.Printf("Error: Error parsing %s: %s", entry.Name, err)
+                    if err == chunk.BinaryFileError {
+                        log.Printf("Worker %d: skipping suspected binary file %s", i, entry.Name)
+                    } else {
+                        log.Printf("Worker %d: error parsing %s: %s", i, entry.Name, err)
+                    }
 					continue
 				}
 
-				token, err := tokenizer.Next()
-				for ; err == nil; token, err = tokenizer.Next() {
-					tokenCh <- token
+				for token, err := chunker.Next(); err == nil; token, err = chunker.Next() {
+					chunkCh <- token
 				}
 				if err != io.EOF {
 					log.Printf("Error: Error parsing %s: %s", entry.Name, err)
@@ -133,31 +134,22 @@ func main() {
 		}(i)
 	}
 
-	client, err := embed.NewClient("localhost", "50051")
-	if err != nil {
-		log.Panic(err)
-	}
-
-	reqsDone := make(chan bool)
-	go func() {
-		var wg sync.WaitGroup
-		for token := range tokenCh {
-			wg.Add(1)
-			go func(token string) {
-				defer wg.Done()
-				emb, err := client.Predict(context.TODO(), &pb.Chunk{Content: token})
-				if err != nil {
-					log.Printf("Error: Error predicting %s: %s", token, err)
-				}
-				vec := emb.GetVec()
-				log.Printf("vec[%d] = %f", len(vec)-1, vec[len(vec)-1])
-			}(token)
-		}
-		wg.Wait()
-		reqsDone <- true
-	}()
+    tokenCh := make(chan *tokenize.TokenizedChunk, 512)
+    for i := 0; i < NUM_WORKERS; i++ {
+        wg.Add(1)
+        go func(i int) {
+            defer wg.Done()
+            for chunk := range chunkCh {
+                t := tokenize.NewTokenizer(chunk)
+                for token := t.Next(); token != nil; token = t.Next() {
+                    tokenCh <- token
+                }
+            }
+        }(i)
+    }
 
 	emitter := func(osPathname string, file *os.File) error {
+        println(osPathname)
 		parseCh <- ChunkSource{
 			Name:   osPathname,
 			Reader: file,
@@ -165,6 +157,13 @@ func main() {
 		return nil
 	}
 	w := walker.NewWalker(emitter)
+
+
+    go func () {
+        for t := range tokenCh {
+            log.Println(t.String())
+        }
+    }()
 
 	useStdin := false
 	for _, path := range entryPaths {
@@ -187,8 +186,5 @@ func main() {
 		}
 	}
 
-	close(parseCh)
-	wg.Wait()
-	close(tokenCh)
-	<-reqsDone
+    wg.Wait()
 }
