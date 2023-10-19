@@ -57,6 +57,8 @@ func (t *StridedTokenizer) Next() (string, error) {
 	return string(t.b[start:end]), nil
 }
 
+var BinaryFileError error
+
 func NewTokenizer(filename string, reader io.Reader, config *config.Config) (Tokenizer, error) {
 	var lang *Language
 	for _, l := range Languages {
@@ -69,6 +71,17 @@ func NewTokenizer(filename string, reader io.Reader, config *config.Config) (Tok
 	if err != nil {
 		return nil, err
 	}
+
+    // check to see if file is binary
+    bytesToCheck := 1024
+    if len(b) < bytesToCheck {
+        bytesToCheck = len(b)
+    }
+    for i := 0; i < bytesToCheck; i++ {
+        if b[i] == 0 {
+            return nil, BinaryFileError
+        }
+    }
 
 	if lang == nil || lang.Strided {
 		return &StridedTokenizer{

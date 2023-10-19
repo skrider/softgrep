@@ -110,7 +110,11 @@ func main() {
 			for entry = range parseCh {
 				tokenizer, err := tokenize.NewTokenizer(entry.Name, entry.Reader, &config)
 				if err != nil {
-					log.Printf("Error: Error parsing %s: %s", entry.Name, err)
+                    if err == tokenize.BinaryFileError {
+                        log.Printf("Worker %d: skipping suspected binary file %s", i, entry.Name)
+                    } else {
+                        log.Printf("Worker %d: error parsing %s: %s", i, entry.Name, err)
+                    }
 					continue
 				}
 
