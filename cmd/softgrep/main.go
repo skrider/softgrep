@@ -9,7 +9,7 @@ import (
 	"sync"
 
 	"github.com/skrider/softgrep/pkg/config"
-	"github.com/skrider/softgrep/pkg/tokenize"
+	"github.com/skrider/softgrep/pkg/chunk"
 	"github.com/skrider/softgrep/pkg/walker"
 )
 
@@ -96,7 +96,7 @@ func main() {
 	parseCh := make(chan ChunkSource, NUM_WORKERS)
 	var wg sync.WaitGroup
 
-	tokenCh := make(chan string)
+	chunkCh := make(chan string)
 	for i := 0; i < NUM_WORKERS; i++ {
 		wg.Add(1)
 		go func(i int) {
@@ -108,9 +108,9 @@ func main() {
 				}
 			}()
 			for entry = range parseCh {
-				tokenizer, err := tokenize.NewTokenizer(entry.Name, entry.Reader, &config)
+				chunker, err := chunk.NewChunker(entry.Name, entry.Reader, &config)
 				if err != nil {
-                    if err == tokenize.BinaryFileError {
+                    if err == chunk.BinaryFileError {
                         log.Printf("Worker %d: skipping suspected binary file %s", i, entry.Name)
                     } else {
                         log.Printf("Worker %d: error parsing %s: %s", i, entry.Name, err)
@@ -118,9 +118,9 @@ func main() {
 					continue
 				}
 
-				token, err := tokenizer.Next()
-				for ; err == nil; token, err = tokenizer.Next() {
-					tokenCh <- token
+				token, err := chunker.Next()
+				for ; err == nil; token, err = chunker.Next() {
+					chunkCh <- token
 				}
 				if err != io.EOF {
 					log.Printf("Error: Error parsing %s: %s", entry.Name, err)
@@ -146,7 +146,7 @@ func main() {
 
 
     go func () {
-        for chunk := range tokenCh {
+        for chunk := range chunkCh {
             log.Println(chunk)
         }
     }()

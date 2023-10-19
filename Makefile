@@ -11,7 +11,7 @@ pb:
 BENCH_LOG = $(OUT)/benchmark.log
 BENCH_CMD = $(OUT)/softgrep ./testdata/grpc
 languages: tool/generate_ts_import
-	go run tool/generate_ts_import/main.go > pkg/tokenize/languages.go
+	go run tool/generate_ts_import/main.go > pkg/chunk/languages.go
 
 build-debug:
 	go build -o $(OUT)/softgrep-debug -gcflags='all=-N -l' cmd/softgrep/main.go
