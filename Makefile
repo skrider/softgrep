@@ -1,6 +1,7 @@
 # BUILD
 OUT = $(shell pwd)/build
 TARGETPLATFORM = linux-x86_64
+MODEL = microsoft/codebert-base
 
 pb: 
 	protoc --go_out=. --go_opt=paths=source_relative \
@@ -31,8 +32,12 @@ format:
 	fd -e go -x go fmt
 	fd -e py | $(PYTHON_ENV) xargs $(PYTHON_EXE) -m black
 
-build: build/libtokenizers.a
-	LD_LIBRARY_PATH="$(OUT)" CGO_ENABLED=1 CGO_LDFLAGS="-Wl,--copy-dt-needed-entries" go build -o $(OUT)/softgrep cmd/softgrep/main.go 
+vocab:
+	./scripts/download_vocab.py --model $(MODEL) --output ./pkg/tokenize
+.PHONY: vocab
+
+build:
+	CGO_ENABLED=1 CGO_LDFLAGS="-Wl,--copy-dt-needed-entries,-L$(OUT)" go build -o $(OUT)/softgrep cmd/softgrep/main.go 
 .PHONY: build
 
 # message is passed in via env

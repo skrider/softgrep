@@ -8,8 +8,9 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/skrider/softgrep/pkg/config"
 	"github.com/skrider/softgrep/pkg/chunk"
+	"github.com/skrider/softgrep/pkg/config"
+	"github.com/skrider/softgrep/pkg/tokenize"
 	"github.com/skrider/softgrep/pkg/walker"
 )
 
@@ -134,6 +135,20 @@ func main() {
 		}(i)
 	}
 
+    tokenCh := make(chan *tokenize.TokenizedChunk)
+    for i := 0; i < NUM_WORKERS; i++ {
+        wg.Add(1)
+        go func(i int) {
+            defer wg.Done()
+            for chunk := range chunkCh {
+                t := tokenize.NewTokenizer(chunk)
+                for token := t.Next(); token != nil; token = t.Next() {
+                    tokenCh <- token
+                }
+            }
+        }(i)
+    }
+
 	emitter := func(osPathname string, file *os.File) error {
         println(osPathname)
 		parseCh <- ChunkSource{
@@ -146,8 +161,8 @@ func main() {
 
 
     go func () {
-        for chunk := range chunkCh {
-            log.Println(chunk)
+        for t := range tokenCh {
+            log.Println(t.String())
         }
     }()
 

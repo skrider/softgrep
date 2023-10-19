@@ -1,18 +1,25 @@
-FROM python:3.7-bookworm as base
+# syntax=docker/dockerfile:1.3
 
-WORKDIR /app
+FROM golang:1.19 as builder
+ARG TARGETPLATFORM
+WORKDIR /src
+RUN curl -fsSL https://github.com/daulet/tokenizers/releases/latest/download/libtokenizers.$(echo ${TARGETPLATFORM} | tr / -).tar.gz | tar xvz
 
-RUN --mount=type=cache,target=/root/.cache/pip \
-    python -m pip install --upgrade pip
+COPY go.mod go.sum ./
 
-COPY python/server/requirements.txt .
+# Download dependencies
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    go mod download
 
-RUN --mount=type=cache,target=/root/.cache/pip \
-    python -m pip install --requirement requirements.txt
+RUN --mount=type=cache,target=/go/pkg/mod \
+    mv libtokenizers.a /go/pkg/mod/github.com/daulet/tokenizers@v0.5.1/libtokenizers.a
 
-COPY pb pb
-COPY python/server python/server
-
-EXPOSE 50051
-ENV PYTHONPATH="/app:$PYTHONPATH"
+COPY ./pkg ./pkg
+COPY ./cmd ./cmd
+COPY ./pb ./pb
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/var/cache/go,id=${TARGETPLATFORM} \
+    CGO_ENABLED=1 CGO_LDFLAGS="-Wl,--copy-dt-needed-entries" go build ./cmd/softgrep/main.go
 
