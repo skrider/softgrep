@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"io"
 	"log"
@@ -9,9 +8,7 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/skrider/softgrep/pb"
 	"github.com/skrider/softgrep/pkg/config"
-	"github.com/skrider/softgrep/pkg/embed"
 	"github.com/skrider/softgrep/pkg/tokenize"
 	"github.com/skrider/softgrep/pkg/walker"
 )
@@ -133,31 +130,8 @@ func main() {
 		}(i)
 	}
 
-	client, err := embed.NewClient("localhost", "50051")
-	if err != nil {
-		log.Panic(err)
-	}
-
-	reqsDone := make(chan bool)
-	go func() {
-		var wg sync.WaitGroup
-		for token := range tokenCh {
-			wg.Add(1)
-			go func(token string) {
-				defer wg.Done()
-				emb, err := client.Predict(context.TODO(), &pb.Chunk{Content: token})
-				if err != nil {
-					log.Printf("Error: Error predicting %s: %s", token, err)
-				}
-				vec := emb.GetVec()
-				log.Printf("vec[%d] = %f", len(vec)-1, vec[len(vec)-1])
-			}(token)
-		}
-		wg.Wait()
-		reqsDone <- true
-	}()
-
 	emitter := func(osPathname string, file *os.File) error {
+        println(osPathname)
 		parseCh <- ChunkSource{
 			Name:   osPathname,
 			Reader: file,
@@ -165,6 +139,13 @@ func main() {
 		return nil
 	}
 	w := walker.NewWalker(emitter)
+
+
+    go func () {
+        for chunk := range tokenCh {
+            log.Println(chunk)
+        }
+    }()
 
 	useStdin := false
 	for _, path := range entryPaths {
@@ -187,8 +168,4 @@ func main() {
 		}
 	}
 
-	close(parseCh)
-	wg.Wait()
-	close(tokenCh)
-	<-reqsDone
 }
